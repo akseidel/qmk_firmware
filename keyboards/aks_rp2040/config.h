@@ -16,10 +16,30 @@
 
 #pragma once
 
-#include_next <mcuconf.h>
+/* OLED SPI Defines */
+#define OLED_DISPLAY_128X64
+#define OLED_IC OLED_IC_SH1106
 
-#undef RP_SPI_USE_SPI1
-#define RP_SPI_USE_SPI1 TRUE
+/* OLED SPI Pins */
+#define OLED_DC_PIN GP24
+#define OLED_CS_PIN GP22
+#define OLED_RST_PIN GP23
 
-#undef RP_PWM_USE_PWM0
-#define RP_PWM_USE_PWM0 TRUE
+#define OLED_BRIGHTNESS 128
+
+/* Shift OLED columns by 2 pixels */
+#define OLED_COLUMN_OFFSET 2
+
+/* Divisor for OLED */
+#define OLED_SPI_DIVISOR 4
+
+/* ChibiOS SPI definitions */
+#define SPI_DRIVER SPID1
+#define SPI_SCK_PIN GP26
+#define SPI_MOSI_PIN GP27
+#define SPI_MISO_PIN GP28
+
+/* Double tap the side button to enter bootloader */
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP13
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 500U

@@ -16,10 +16,16 @@
 
 #pragma once
 
-#include_next <mcuconf.h>
+#include_next <halconf.h>
 
-#undef RP_SPI_USE_SPI1
-#define RP_SPI_USE_SPI1 TRUE
+#undef HAL_USE_SPI
+#define HAL_USE_SPI TRUE
 
-#undef RP_PWM_USE_PWM0
-#define RP_PWM_USE_PWM0 TRUE
+#undef SPI_USE_WAIT
+#define SPI_USE_WAIT TRUE
+
+#undef SPI_SELECT_MODE
+#define SPI_SELECT_MODE SPI_SELECT_MODE_PAD
+
+#undef HAL_USE_PWM
+#define HAL_USE_PWM TRUE

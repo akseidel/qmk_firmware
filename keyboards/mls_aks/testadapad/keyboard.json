@@ -1,11 +1,13 @@
 {
-    "keyboard_name": "Macropad RP2040",
-    "manufacturer": "Adafruit",
+    "keyboard_name": "MLS USB Footpedal rp2040",
+    "manufacturer": "VEC-mls_aks",
     "url": "https://learn.adafruit.com/adafruit-macropad-rp2040",
-    "maintainer": "Jpe230",
+    "maintainer": "aks-mls",
     "usb": {
-        "vid": "0x239A",
-        "pid": "0x0108",
+        // "vid": "0x239A",
+        // "pid": "0x0108",
+        "vid": "0x05F3",
+        "pid": "0x00FF",
         "device_version": "0.0.1"
     },
     "features": {
@@ -13,9 +15,16 @@
         "mousekey": false,
         "extrakey": true,
         "nkro": true,
+        "audio": true,
         "encoder": true,
         "rgb_matrix": true,
         "oled": true
+    },
+    "audio": {
+        "driver": "pwm_hardware",
+        "power_control": {
+            "pin": "GP14"
+        }
     },
     "encoder": {
         "rotary": [
@@ -24,49 +33,8 @@
     },
     "rgb_matrix": {
         "animations": {
-            "alphas_mods": false,
-            "gradient_up_down": false,
-            "gradient_left_right": false,
-            "breathing": false,
-            "band_sat": false,
-            "band_val": false,
-            "band_pinwheel_sat": false,
-            "band_pinwheel_val": false,
-            "band_spiral_sat": false,
-            "band_spiral_val": false,
-            "cycle_all": false,
-            "cycle_left_right": false,
-            "cycle_up_down": false,
-            "rainbow_moving_chevron": false,
-            "cycle_out_in": false,
-            "cycle_out_in_dual": false,
-            "cycle_pinwheel": false,
-            "cycle_spiral": false,
-            "dual_beacon": false,
-            "rainbow_beacon": false,
-            "rainbow_pinwheels": false,
-            "raindrops": false,
-            "jellybean_raindrops": false,
-            "hue_breathing": false,
-            "hue_pendulum": false,
-            "hue_wave": false,
-            "pixel_rain": false,
-            "pixel_flow": false,
-            "pixel_fractal": false,
-            "typing_heatmap": false,
-            "digital_rain": false,
-            "solid_reactive_simple": true,
-            "solid_reactive": false,
-            "solid_reactive_wide": false,
-            "solid_reactive_multiwide": false,
-            "solid_reactive_cross": false,
-            "solid_reactive_multicross": false,
-            "solid_reactive_nexus": false,
-            "solid_reactive_multinexus": false,
-            "splash": false,
-            "multisplash": false,
-            "solid_splash": false,
-            "solid_multisplash": false
+            "breathing": true,
+            "hue_breathing": true
         },
         "driver": "ws2812",
         "layout": [

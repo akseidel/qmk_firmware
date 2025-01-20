@@ -1,12 +1,12 @@
 {
-    "keyboard_name": "Macropad RP2040",
-    "manufacturer": "Adafruit",
-    "url": "https://learn.adafruit.com/adafruit-macropad-rp2040",
-    "maintainer": "Jpe230",
+    "keyboard_name": "MLS USB Footpedal rp2040",
+    "manufacturer": "VEC-mls_aks",
+    "url": "",
+    "maintainer": "aks-mls",
     "usb": {
-        "vid": "0x239A",
-        "pid": "0x0108",
-        "device_version": "0.0.1"
+        "device_version": "0.0.1",
+        "vid": "0x05F3",
+        "pid": "0x00FF"
     },
     "features": {
         "bootmagic": true,
