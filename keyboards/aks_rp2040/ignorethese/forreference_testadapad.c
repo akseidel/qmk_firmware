@@ -110,12 +110,13 @@ void render_logo(void) {
 #ifndef SHOW_LOGO
 #    define SHOW_LOGO 4000
 #endif
+
 bool oled_task_kb(void) {
 
     // if (!oled_task_user()) { return false; }
     //     render_logo();
     if ((timer_elapsed32(oled_logo_timer) < SHOW_LOGO)){
-        // render_logo();
+        render_logo();
         // oled_scroll_left();
         // oled_write(PSTR("Layer: "), false);
     }else{

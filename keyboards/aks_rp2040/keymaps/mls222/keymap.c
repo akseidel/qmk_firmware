@@ -102,14 +102,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         };
         oled_write_raw_P(aks_mls_logo, sizeof(aks_mls_logo));
     }
-
+        // set the oled display rotation
         bool oled_init(oled_rotation_t(OLED_ROTATION_0));
+        // oled_scroll_left();
+
 
         bool oled_task_user(void) {
             render_logo();
 
             oled_set_cursor(0, 3);
-            // oled_write(PSTR("Layer: "), false);
 
             switch (get_highest_layer(layer_state)) {
                 case _PEDAL:
