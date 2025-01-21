@@ -67,6 +67,7 @@ void audio_off_user(void) {
 #endif
 
 #ifdef OLED_ENABLE
+static bool post_startup = false;
 static uint32_t oled_logo_timer = 0;
     // static void render_logo(void) {
         static const char PROGMEM aks_mls_logo[] = {
@@ -117,10 +118,7 @@ bool oled_task_kb(void) {
     //     render_logo();
     if ((timer_elapsed32(oled_logo_timer) < SHOW_LOGO)){
         render_logo();
-        // oled_scroll_left();
-        // oled_write(PSTR("Layer: "), false);
     }else{
-        render_logo();
         oled_task_user();
     }
     return false;
