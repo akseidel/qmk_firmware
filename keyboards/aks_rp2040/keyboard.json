@@ -3,6 +3,8 @@
     "manufacturer": "VEC-mls_aks",
     "url": "",
     "maintainer": "aks-mls",
+    "processor": "RP2040",
+    "bootloader": "rp2040",
     "usb": {
         "device_version": "0.0.1",
         "vid": "0x05F3",
@@ -96,7 +98,7 @@
         ]
     },
     "build": {
-        "lto": false
+        "lto": true
     },
     "bootmagic": {
         "matrix": [1, 2]
@@ -105,8 +107,6 @@
         "pin": "GP19",
         "driver": "vendor"
     },
-    "processor": "RP2040",
-    "bootloader": "rp2040",
     "matrix_pins": {
         "direct": [
             [null, null, "GP0"],
