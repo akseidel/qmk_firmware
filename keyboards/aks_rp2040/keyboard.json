@@ -11,8 +11,8 @@
         "pid": "0x00FF"
     },
     "features": {
-        "bootmagic": true,
-        "mousekey": false,
+        "bootmagic": false,
+        "mousekey": true,
         "extrakey": true,
         "nkro": true,
         "encoder": true,
