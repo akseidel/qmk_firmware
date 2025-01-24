@@ -47,5 +47,6 @@
 #define RGB_MATRIX_MAXIMUM_BRIGHTNESS 255
 
 /* Mousekey speed control */
-#define MK_MOMENTARY_ACCEL
+// #define MK_MOMENTARY_ACCEL
 #define MK_3_SPEED
+#define MK_COMBINED
