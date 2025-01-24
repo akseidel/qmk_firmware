@@ -36,6 +36,7 @@ enum custom_keycodes {
     SPEED_D,              // Throttle decrease
     SPEED_1,              // Throttle one
     SPEED_0,              // Throttle zero
+    GOTO_0,               // Return to location 0
     MLS_WHLU,             // MLS control up
     MLS_WHLD              // MLS control dn
 };
@@ -44,7 +45,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* Standard out of box mouse wheel action */
     [_PEDAL]        = LAYOUT(TO(_ALTERNATE1),                               // encoder press goto _ALTERNATE1
                             ENMW_Z,  KC_NO,   KC_NO,                        // counter zero
-                            KC_NO,   KC_NO,   KC_NO,
+                            KC_NO,   KC_NO,   GOTO_0,
                             ENMW_U, KC_WH_U, KC_NO,
                             ENMW_D, KC_WH_D, KC_NO
                             //  PEDAL_L, PEDAL_M, PEDAL_R                       // pedal buttons in macros
@@ -62,7 +63,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     throttle while keys are used for up and down. */
     [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                            // encoder press goto _LED_SETTINGS
                             ENMW_Z,   SPEED_1, SPEED_0,                     // counter 0, throttle 1, throttle 0
-                            KC_NO,    KC_NO,   KC_NO,
+                            KC_NO,    KC_NO,   GOTO_0,
                             MLS_WHLU, KC_NO, KC_NO,
                             MLS_WHLD, KC_NO, KC_NO
                             //  PEDAL_L, PEDAL_M, PEDAL_R                       // pedal buttons in macros
@@ -258,6 +259,27 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
     /* The idea here is to make sure these events get processed before any
     of the other movement events. */
     switch (keycode) {
+        case SPEED_U:
+            if (record->event.pressed) {
+                // when pressed
+                en_speed++;
+            } else {
+                // when released
+            }
+            clear_keyboard();
+            break;
+
+        case SPEED_D:
+            if (record->event.pressed) {
+                // when pressed
+                if (en_speed > 0) {
+                     en_speed--;
+                }
+            } else {
+                // when released
+            }
+            clear_keyboard();
+            break;
         case ENMW_Z: /* Zero the encoder counter */
             if (record->event.pressed) {
                 // when pressed
@@ -266,6 +288,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             } else {
                 // when released
             }
+            clear_keyboard();
             break;
         case SPEED_1: /* One the throttle */
             if (record->event.pressed) {
@@ -275,6 +298,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             } else {
                 // when released
             }
+            clear_keyboard();
             break;
         case SPEED_0: /* Zero the throttle */
             if (record->event.pressed) {
@@ -284,10 +308,10 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             } else {
                 // when released
             }
+            clear_keyboard();
             break;
         default:
             break;
-
     }
     // rept_encoder_turns();
     // rept_throttle();
@@ -310,41 +334,41 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         reported to the oled stays displayed during that press down to release time
         period because the matrix scan sees those events on every scan and
         they are sensed in this switch(keycode) code block. */
-        case PEDAL_L:
-            if (record->event.pressed) {
-                // when pressed
-                register_code(MS_BTN1);
-                oled_clean_write_ln(0, 7, "<= Pedal Left");
-            } else {
-                // when released
-                unregister_code(MS_BTN1);
-                oled_clean_write_ln(0, 7, "");
-            }
-            break;
+        // case PEDAL_L:
+        //     if (record->event.pressed) {
+        //         // when pressed
+        //         register_code(MS_BTN1);
+        //         oled_clean_write_ln(0, 7, "<= Pedal Left");
+        //     } else {
+        //         // when released
+        //         unregister_code(MS_BTN1);
+        //         oled_clean_write_ln(0, 7, "");
+        //     }
+        //     break;
 
-        case PEDAL_M:
-            if (record->event.pressed) {
-                // when pressed
-                register_code(MS_BTN2);
-                oled_clean_write_ln(2, 7, ">> Pedal Middle <<");
-            } else {
-                // when released
-                unregister_code(MS_BTN2);
-                oled_clean_write_ln(2, 7, "");
-            }
-            break;
+        // case PEDAL_M:
+        //     if (record->event.pressed) {
+        //         // when pressed
+        //         register_code(MS_BTN2);
+        //         oled_clean_write_ln(2, 7, ">> Pedal Middle <<");
+        //     } else {
+        //         // when released
+        //         unregister_code(MS_BTN2);
+        //         oled_clean_write_ln(2, 7, "");
+        //     }
+        //     break;
 
-        case PEDAL_R:
-            if (record->event.pressed) {
-                // when pressed
-                register_code(MS_BTN3);
-                oled_clean_write_ln(7, 7, "Pedal Right =>");
-            } else {
-                // when released
-                unregister_code(MS_BTN3);
-                oled_clean_write_ln(7, 7, "");
-            }
-            break;
+        // case PEDAL_R:
+        //     if (record->event.pressed) {
+        //         // when pressed
+        //         register_code(MS_BTN3);
+        //         oled_clean_write_ln(7, 7, "Pedal Right =>");
+        //     } else {
+        //         // when released
+        //         unregister_code(MS_BTN3);
+        //         oled_clean_write_ln(7, 7, "");
+        //     }
+        //     break;
 
             /*  ENMW_U, Encoder as mouse wheel up
              ENMW_D   Encoder as mouse wheel dn
@@ -405,32 +429,31 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //     }
         //     break;
 
-        case SPEED_U:
-            if (record->event.pressed) {
-                // when pressed
-                en_speed++;
-            } else {
-                // when released
-            }
-            break;
+        // case SPEED_U:
+        //     if (record->event.pressed) {
+        //         // when pressed
+        //         en_speed++;
+        //     } else {
+        //         // when released
+        //     }
+        //     break;
 
-        case SPEED_D:
-            if (record->event.pressed) {
-                // when pressed
-                if (en_speed > 0) {
-                     en_speed--;
-                }
-            } else {
-                // when released
-            }
-            break;
+        // case SPEED_D:
+        //     if (record->event.pressed) {
+        //         // when pressed
+        //         if (en_speed > 0) {
+        //              en_speed--;
+        //         }
+        //     } else {
+        //         // when released
+        //     }
+        //     break;
 
         case MLS_WHLU:
             if (record->event.pressed) {
                 // when pressed
                 if (en_speed == 0 ){
-                    register_code(KC_WH_U);
-                    unregister_code(KC_WH_U);
+                    tap_code(KC_WH_U);
                 }else{
                     for (int i = 0; i < en_speed ; i++) {
                         register_code(KC_WH_U);
@@ -448,8 +471,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 // when pressed
                 if (en_speed == 0 ){
-                    register_code(KC_WH_D);
-                    unregister_code(KC_WH_D);
+                    tap_code(KC_WH_D);
                 }else{
                     for (int i = 0; i < en_speed ; i++) {
                         register_code(KC_WH_D);
@@ -460,6 +482,25 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             } else {
                 // when released
                 unregister_code(KC_WH_D);
+            }
+            break;
+        case GOTO_0: /* Goto position 0 */
+            if (record->event.pressed) {
+                // when pressed
+                if (en_turns < 0) {
+                    for (int i = 0; i < (-en_turns) ; i++) {
+                        tap_code(KC_WH_U);
+                        en_turns++;
+                    }
+                } else if (en_turns > 0) {
+                for (int i = 0; i < en_turns ; i++) {
+                            tap_code(KC_WH_D);
+                            en_turns--;
+                        }
+                }
+                oled_clean_write_ln(2, 4, "///  Back To 0  \\\\\\");
+            } else {
+                // when released
             }
             break;
         default:
