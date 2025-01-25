@@ -1,4 +1,4 @@
-/* Copyright 2022 Jose Pablo Ramirez <jp.ramangulo@gmail.com>
+/* MLS_AKS
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,41 +14,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #pragma once
-
-/* OLED SPI Defines */
-#define OLED_DISPLAY_128X64
-#define OLED_IC OLED_IC_SH1106
-
-/* OLED SPI Pins */
-#define OLED_DC_PIN GP24
-#define OLED_CS_PIN GP22
-#define OLED_RST_PIN GP23
-
-#define OLED_BRIGHTNESS 128
-
-/* Shift OLED columns by 2 pixels */
-#define OLED_COLUMN_OFFSET 2
-
-/* Divisor for OLED */
-#define OLED_SPI_DIVISOR 4
-
-/* ChibiOS SPI definitions */
-#define SPI_DRIVER SPID1
-#define SPI_SCK_PIN GP26
-#define SPI_MOSI_PIN GP27
-#define SPI_MISO_PIN GP28
 
 /* Double tap the side button to enter bootloader */
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP13
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 500U
 
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 255
-
-/* Mousekey speed control */
-// #define MK_MOMENTARY_ACCEL
-#define MK_3_SPEED
-#define MK_COMBINED
-#define MOUSEKEY_WHEEL_INTERVAL 8000
-#define MOUSEKEY_WHEEL_DELAY 1
