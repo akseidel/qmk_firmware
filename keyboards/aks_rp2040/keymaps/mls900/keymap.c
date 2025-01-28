@@ -1,4 +1,4 @@
-/* Copyright 2022 Jose Pablo Ramirez <jp.ramangulo@gmail.com>
+/* Copyright 2025 Miles Seidel <mlseidel@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,7 @@
  */
 
 #include QMK_KEYBOARD_H
-// #include "stdio.h"
-#include "print.h" // in use only when trying to debug
+// #include "print.h" // in use only when trying to debug
 
 enum layer_names { _BASE,
                 _ALTERNATE1,
@@ -26,52 +25,60 @@ enum layer_names { _BASE,
                 };
 
 enum custom_keycodes {
-    PEDAL_L = SAFE_RANGE, // Left foot pedal simulation
-    PEDAL_M,              // Middle foot pedal simulation
-    PEDAL_R,              // Right foot pedal simulation
-    ENMW_U,               // Encoder as mouse wheel up
-    ENMW_D,               // Encoder as mouse wheel dn
+    ENC_U = SAFE_RANGE,   // Encoder as mouse wheel up
+    ENC_D,               // Encoder as mouse wheel dn
     TURN_0,               // Zero the encoder counts
-    SPEED_U,              // Throttle increase
-    SPEED_D,              // Throttle decrease
-    SPEED_1,              // Throttle one
-    SPEED_0,              // Throttle zero
-    GOTO_0,               // Return to location 0
-    MLS_WHLU,             // MLS control up
-    MLS_WHLD,              // MLS control dn
-    MSG_STBY,
-    MSG_READY
+    ENC_STRIDE_INC,              // Stride increase
+    ENC_STRIDE_DEC,              // Stride decrease
+    STRIDE_1,              // Set stride to one
+    GOTO_0,             // Return to position 0
+    MLS_WHLU,           // MLS control up
+    MLS_WHLD,           // MLS control dn
+    MSG_STBY,           // Show message standby
+    MSG_READY,          // Show message ready
+    SPD_1_U,            // Wheel up at accelerated speed 1
+    SPD_1_D,            // Wheel down at accelerated speed 1
+    SPD_2_U,            // Wheel up at accelerated speed 2
+    SPD_2_D,            // Wheel down at accelerated speed 2
+    SPD_3_U,            // Wheel up at accelerated speed 3
+    SPD_3_D,            // Wheel down at accelerated speed 3
+    LAY_F,              // Switch to next layer (not used at this time)
+    LAY_B               // Switch to previous layer (not used at this time)
 };
 
+
+/* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    /* Standard out of box mouse wheel action */
+    /* One shot strides and also standard out of box mouse wheel action */
     [_BASE]        = LAYOUT(TO(_ALTERNATE1),                               // encoder press goto _ALTERNATE1
-                            TURN_0,  KC_NO,   KC_NO,                        // counter zero
-                            GOTO_0,   KC_NO, GOTO_0,
-                            ENMW_U, KC_WH_U, KC_NO,
-                            ENMW_D, KC_WH_D, KC_NO
+                            TURN_0,  KC_NO,   KC_NO,                       // counter zero
+                            GOTO_0,   KC_NO, STRIDE_1,                     // goto postion 0, kc_no, set stride to 1
+                            ENC_U, KC_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
+                            ENC_D, KC_WH_D, ENC_STRIDE_DEC         // 1 shot d click stride x,reg. wheel,inc stride
                              ),
     /* QMK accelerated mouse wheel action
-    The ACL0, ACL1 and ACL2 keys set three speed ranges. */
-    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                              // encoder press goto _ALTERNATE2
+    The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges.
+    Speed is currently set at compile time. Position counter n/a. */
+    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                            // encoder press goto _ALTERNATE2
                             TURN_0,  KC_NO,   KC_NO,                      // counter zero
-                            GOTO_0,   KC_NO,   MS_ACL2,
-                            MS_WHLU, KC_WH_U, MS_ACL1,
-                            MS_WHLD, KC_WH_D, MS_ACL0
+                            GOTO_0,  KC_NO,   KC_NO,                      // goto postion 0
+                            SPD_1_U, SPD_2_U, SPD_3_U,                    // up @ spd 1, up @ spd 2, up @ spd 3
+                            SPD_1_D, SPD_2_D, SPD_3_D                     // dn @ spd 1, dn @ spd 2, dn @ spd 3
                              ),
-    /* MLS mouse wheel speed control. The encoder act as a
-    throttle while keys are used for up and down. */
-    [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                            // encoder press goto _LED_SETTINGS
-                            TURN_0,   SPEED_1, SPEED_0,                     // counter 0, throttle 1, throttle 0
-                            GOTO_0,   KC_NO, KC_NO,
-                            MLS_WHLU, KC_NO, KC_NO,
-                            MLS_WHLD, KC_NO, KC_NO
+    /* MLS mouse wheel speed control. The encoder sets stride
+    while keys are used for up and down at stride distance. */
+    [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                           // encoder press goto _LED_SETTINGS
+                            TURN_0,   KC_NO, STRIDE_1,                     // counter 0, kc_no, set stride to 1
+                            GOTO_0,   KC_NO, STRIDE_1,                     // goto postion 0, kc_no, set stride to 1
+                            MLS_WHLU, MLS_WHLU, MLS_WHLU,                  // all keys do up
+                            MLS_WHLD, MLS_WHLD, MLS_WHLD                   // all keys do dn
                              ),
-    [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                                   // encoder press goto _STANDBY
-                             RM_NEXT, KC_NO, RM_TOGG,                        // Next RGB animation, nada, Toggle animations
+    /* LED animation setting layer */
+    [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                                 // encoder press goto _STANDBY
+                             RM_NEXT, KC_NO, RM_TOGG,                      // Next RGB animation, kc_no, Animation on/off
                              KC_NO, KC_NO, KC_NO,
-                             RM_VALU, RM_HUEU, RM_SPDU,                      // intensity up, color hue up, amim speed up
-                             RM_VALD, RM_HUED, RM_SPDD                       // intensity dn, color hue dn, amim speed dn
+                             RM_VALU, RM_HUEU, RM_SPDU,                    // intensity up, color hue up, amim speed up
+                             RM_VALD, RM_HUED, RM_SPDD                     // intensity dn, color hue dn, amim speed dn
                              ),
     [_STANDBY]      = LAYOUT(MSG_READY,                                     // encoder press goto _BASE
                              MSG_STBY, MSG_STBY, MSG_STBY,
@@ -83,7 +90,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 
 static int32_t en_turns = 0;    /* being used to record number of encoder turns */
-static int32_t en_speed = 1;
+static int32_t stride = 1;
 
 #ifdef ENCODER_MAP_ENABLE
 /*  This sets what the encoder turning does at each layer.
@@ -93,9 +100,9 @@ static int32_t en_speed = 1;
     Keep in mind the transparency encoding applies.
 */
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [_BASE]        = {ENCODER_CCW_CW(ENMW_U, ENMW_D)},   // mouse wheel down and up
-    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENMW_U, ENMW_D)}, // mouse wheel down and up
-    [_ALTERNATE2]    = {ENCODER_CCW_CW(SPEED_U, SPEED_D)}, // mouse wheel down and up
+    [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)},
+    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENC_U,ENC_D)},
+    [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)},
     [_LED_SETTINGS] = {ENCODER_CCW_CW(RM_VALD, RM_VALU)}, // LED brightness
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
 };
@@ -147,17 +154,19 @@ void init_logo_timer(void) {
 void keyboard_post_init_kb(void) {
     // This function executes once.
     init_logo_timer();
-    keyboard_post_init_user();
+    // keyboard_post_init_user();
 }
 
-void keyboard_post_init_user(void) {
-    // This function executes once??
-    // Customize these values to desired behaviour
-    debug_enable   = true;
-    debug_matrix   = true;
-    debug_keyboard = true;
-    debug_mouse    = true;
-}
+// Used for debugging
+// void keyboard_post_init_user(void) {
+//     // This function executes once??
+//     // Customize these values to desired behaviour
+//     // debug_enable   = true;
+//     // debug_matrix   = true;
+//     // debug_keyboard = true;
+//     // debug_mouse    = true;
+// }
+
 
 bool oled_task_kb(void) {
     /* This function executes at every matrix scan.
@@ -201,7 +210,7 @@ bool oled_task_user(void) {
             break;
         case _ALTERNATE2:
             oled_write_ln(PSTR("Keys: MLS Mse Wheel"), false);
-            oled_write_ln(PSTR("Encoder: Throttle"), false);
+            oled_write_ln(PSTR("Encoder: Stride"), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
             oled_advance_page(true);
             break;
@@ -228,8 +237,6 @@ bool oled_task_user(void) {
 
 #endif
 
-
-
 /* oled_clean_write_ln() first cleans the desired ln_y oled line (frame)
 before then writing the desired text at the desired ln_y position.
 This gets around the problem of having residual text from previous
@@ -248,70 +255,68 @@ void oled_clean_ln( uint8_t ln_y) {
 
 void rept_encoder_turns(void){
     char buf[14];
-    snprintf(buf, 14, "Moves: %ld", en_turns);
+    snprintf(buf, 14, "Pos: %ld", en_turns);
     oled_clean_write_ln(0, 6, buf);
 }
 
-void rept_throttle(void){
+void rept_Stride(void){
     char buf[18];
-    snprintf(buf, 18, "Throttle: %ld", en_speed);
+    snprintf(buf, 18, "Stride: %ld", stride);
     oled_clean_write_ln(0, 7, buf);
 }
 
-bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
-    /* The idea here is to make sure these events get processed before any
-    of the other movement events. */
+void rept_position_status(void){
+    char buf[18];
+    snprintf(buf, 18, "Pos: %ld", en_turns);
+    oled_clean_write_ln(0, 6, buf);
+    snprintf(buf, 18, "Stride: %ld", stride);
+    oled_clean_write_ln(0, 7, buf);
+}
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    /* This function executes at every matrix scan as long
+        as the process_record__kb allows it. That happens when process_record_kb
+        returns true. Basically on a continuous basis depending on
+        what process_record_kb does. */
     switch (keycode) {
-        case SPEED_U:
+        case ENC_STRIDE_INC:
             if (record->event.pressed) {
                 // when pressed
-                en_speed++;
+                stride++;
+                oled_clean_write_ln(1, 5, "\\\\\\  Stride Chg  ///");
             } else {
                 // when released
             }
-            // clear_keyboard();
             break;
 
-        case SPEED_D:
+        case ENC_STRIDE_DEC:
             if (record->event.pressed) {
                 // when pressed
-                if (en_speed > 0) {
-                     en_speed--;
+                if (stride > 1) {
+                     stride--;
+                    oled_clean_write_ln(1, 5, "///  Stride Chg  \\\\\\");
                 }
             } else {
                 // when released
             }
-            // clear_keyboard();
             break;
         case TURN_0: /* Zero the encoder counter */
             if (record->event.pressed) {
                 // when pressed
                 en_turns = 0;
-                oled_clean_write_ln(3, 4, "///  Zeroed  \\\\\\");
+                oled_clean_write_ln(3, 4, "///  Zero Pos \\\\\\");
             } else {
                 // when released
             }
-            // clear_keyboard();
             break;
-        case SPEED_1: /* One the throttle */
+        case STRIDE_1: /* One the Stride */
             if (record->event.pressed) {
                 // when pressed
-                en_speed = 1;
-                oled_clean_write_ln(3, 4, "///  Speed 1  \\\\\\");
+                stride = 1;
+                oled_clean_write_ln(1, 5, "/// Stride Reset \\\\\\");
             } else {
                 // when released
             }
-            // clear_keyboard();
-            break;
-        case SPEED_0: /* Zero the throttle */
-            if (record->event.pressed) {
-                // when pressed
-                en_speed = 0;
-                oled_clean_write_ln(3, 4, "///  Speed 0  \\\\\\");
-            } else {
-                // when released
-            }
-            // clear_keyboard();
             break;
         case MSG_STBY: /* Standby Message */
             if (record->event.pressed) {
@@ -322,94 +327,135 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             } else {
                 // when released
             }
-            // clear_keyboard();
             break;
-        default:
-            break;
-    }
-    // rept_encoder_turns();
-    // rept_throttle();
-    process_record_user(keycode, record);
-    return true;
-}
-
-
-
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    /* This function executes at every matrix scan as long
-        as the process_record__kb allows it. That happens when process_record_kb
-        returns true. Basically on a continuous basis depending on
-        what process_record_kb does. */
-    switch (keycode) {
-
-        case ENMW_U:
+        case SPD_1_U:
             if (record->event.pressed) {
                 // when pressed
-                // register_code(KC_WH_U);
-                // unregister_code(KC_WH_U);
-                tap_code(KC_WH_U);
-                en_turns++;
+                tap_code(MS_ACL0);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 1 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+        case SPD_1_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL0);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 1 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+        case SPD_2_U:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL1);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 2 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+        case SPD_2_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL1);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 2 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+        case SPD_3_U:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL2);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 3 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+        case SPD_3_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL2);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 3 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+        case ENC_U:
+            /* Note: an encoder event comes as a press/release pair */
+            if (record->event.pressed) {
+                // when pressed
+                for (int i = 0; i < stride ; i++) {
+                        tap_code(KC_WH_U);
+                        en_turns++;
+                    }
                 oled_clean_ln(4);
                 oled_clean_write_ln(3, 5, "/// In Scroll \\\\\\");
             } else {
                 // when released
-                unregister_code(KC_WH_U);
             }
             break;
-
-        case ENMW_D:
+        case ENC_D:
+            /* Note: an encoder event comes as a press/release pair */
             if (record->event.pressed) {
                 // when pressed
-                // register_code(KC_WH_D);
-                tap_code(KC_WH_D);
-                en_turns--;
+                for (int i = 0; i < stride ; i++) {
+                        tap_code(KC_WH_D);
+                        en_turns--;
+                    }
                 oled_clean_ln(4);
                 oled_clean_write_ln(2, 5, "\\\\\\ Out Scroll ///");
             } else {
                 // when released
-                unregister_code(KC_WH_D);
             }
             break;
-
         case MLS_WHLU:
             if (record->event.pressed) {
                 // when pressed
-                if (en_speed == 0 ){
+                for (int i = 0; i < stride ; i++) {
+                    // register_code(KC_WH_U); // NO, does not help!
                     tap_code(KC_WH_U);
                     en_turns++;
-                }else{
-                    for (int i = 0; i < en_speed ; i++) {
-                        register_code(KC_WH_U);
-                        en_turns++;
-                    }
                 }
-                // en_turns = en_turns + en_speed;
                 oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "/// MLS In Scroll \\\\\\");
+                oled_clean_write_ln(0, 5, "// MLS In Scroll \\\\");
             } else {
                 // when released
-                unregister_code(KC_WH_U);
+                // unregister_code(KC_WH_U);
             }
             break;
-
         case MLS_WHLD:
             if (record->event.pressed) {
                 // when pressed
-                if (en_speed == 0 ){
+                for (int i = 0; i < stride ; i++) {
+                    // register_code(KC_WH_D); // NO, does not help!
                     tap_code(KC_WH_D);
                     en_turns--;
-                }else{
-                    for (int i = 0; i < en_speed ; i++) {
-                        register_code(KC_WH_D);
-                        en_turns--;
-                    }
                 }
-                // en_turns = en_turns - en_speed;
                 oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "/// MLS Out Scroll \\\\\\");
+                oled_clean_write_ln(0, 5, "// MLS Out Scroll \\\\");
             } else {
                 // when released
-                unregister_code(KC_WH_D);
+                // unregister_code(KC_WH_D);
             }
             break;
         case GOTO_0: /* Goto position 0 */
@@ -425,7 +471,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     }
                 }
                 oled_clean_ln(4);
-                oled_clean_write_ln(1, 5, "///  Moved To 0  \\\\\\");
+                oled_clean_write_ln(2, 5, "// Scrolled To 0 \\\\");
             } else {
                 // when released
             }
@@ -434,16 +480,37 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             if (record->event.pressed) {
                 // when pressed
                 oled_clean_ln(4);
-                oled_clean_write_ln(2, 5, "///  Ready  \\\\\\");
+                oled_clean_write_ln(3, 5, "///  Ready  \\\\\\");
             } else {
                 layer_move(0);
             }
             return false;
             break;
+
+        case LAY_F: /* Ready Message */
+            if (record->event.pressed) {
+                // when pressed
+
+            } else {
+                // layer_move(0);
+            }
+            return false;
+            break;
+
+        case LAY_B: /* Ready Message */
+            if (record->event.pressed) {
+                // when pressed
+
+            } else {
+                // layer_move(0);
+            }
+            return false;
+            break;
+
+
         default:
             break;
     }
-    rept_encoder_turns();
-    rept_throttle();
+    rept_position_status();
     return true;
 };

@@ -26,46 +26,53 @@ enum layer_names { _BASE,
                 };
 
 enum custom_keycodes {
-    PEDAL_L = SAFE_RANGE, // Left foot pedal simulation
-    PEDAL_M,              // Middle foot pedal simulation
-    PEDAL_R,              // Right foot pedal simulation
-    ENMW_U,               // Encoder as mouse wheel up
+    ENMW_U = SAFE_RANGE,   // Encoder as mouse wheel up
     ENMW_D,               // Encoder as mouse wheel dn
     TURN_0,               // Zero the encoder counts
-    SPEED_U,              // Throttle increase
-    SPEED_D,              // Throttle decrease
-    SPEED_1,              // Throttle one
-    SPEED_0,              // Throttle zero
+    SPEED_U,              // Stride increase
+    SPEED_D,              // Stride decrease
+    SPEED_1,              // Stride one
+    SPEED_0,              // Stride zero
     GOTO_0,               // Return to location 0
     MLS_WHLU,             // MLS control up
     MLS_WHLD,              // MLS control dn
     MSG_STBY,
-    MSG_READY
+    MSG_READY,
+    SPD_1_U,
+    SPD_1_D,
+    SPD_2_U,
+    SPD_2_D,
+    SPD_3_U,
+    SPD_3_D
 };
+
+
+//  SPD_1_U, SPD_2_U, SPD_3_U,       MS_WHLU, KC_WH_U, MS_ACL1,
+//   SPD_1_U, SPD_2_U, SPD_3_U,      MS_WHLD, KC_WH_D, MS_ACL0
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* Standard out of box mouse wheel action */
     [_BASE]        = LAYOUT(TO(_ALTERNATE1),                               // encoder press goto _ALTERNATE1
                             TURN_0,  KC_NO,   KC_NO,                        // counter zero
                             GOTO_0,   KC_NO, GOTO_0,
-                            ENMW_U, KC_WH_U, KC_NO,
-                            ENMW_D, KC_WH_D, KC_NO
+                            ENMW_U, KC_WH_U, KC_WH_U,
+                            ENMW_D, KC_WH_D, KC_WH_D
                              ),
     /* QMK accelerated mouse wheel action
-    The ACL0, ACL1 and ACL2 keys set three speed ranges. */
-    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                              // encoder press goto _ALTERNATE2
+    The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges. */
+    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                            // encoder press goto _ALTERNATE2
                             TURN_0,  KC_NO,   KC_NO,                      // counter zero
-                            GOTO_0,   KC_NO,   MS_ACL2,
-                            MS_WHLU, KC_WH_U, MS_ACL1,
-                            MS_WHLD, KC_WH_D, MS_ACL0
+                            GOTO_0,  KC_NO,   KC_NO,
+                            SPD_1_U, SPD_2_U, SPD_3_U,
+                            SPD_1_D, SPD_2_D, SPD_3_D
                              ),
     /* MLS mouse wheel speed control. The encoder act as a
-    throttle while keys are used for up and down. */
+    Stride while keys are used for up and down. */
     [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                            // encoder press goto _LED_SETTINGS
-                            TURN_0,   SPEED_1, SPEED_0,                     // counter 0, throttle 1, throttle 0
+                            TURN_0,   SPEED_1, SPEED_0,                     // counter 0, Stride 1, Stride 0
                             GOTO_0,   KC_NO, KC_NO,
-                            MLS_WHLU, KC_NO, KC_NO,
-                            MLS_WHLD, KC_NO, KC_NO
+                            MLS_WHLU, MLS_WHLU, MLS_WHLU,
+                            MLS_WHLD, MLS_WHLD, MLS_WHLD
                              ),
     [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                                   // encoder press goto _STANDBY
                              RM_NEXT, KC_NO, RM_TOGG,                        // Next RGB animation, nada, Toggle animations
@@ -93,9 +100,9 @@ static int32_t en_speed = 1;
     Keep in mind the transparency encoding applies.
 */
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [_BASE]        = {ENCODER_CCW_CW(ENMW_U, ENMW_D)},   // mouse wheel down and up
-    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENMW_U, ENMW_D)}, // mouse wheel down and up
-    [_ALTERNATE2]    = {ENCODER_CCW_CW(SPEED_U, SPEED_D)}, // mouse wheel down and up
+    [_BASE]        = {ENCODER_CCW_CW(ENMW_U, ENMW_D)},
+    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENMW_U, ENMW_D)},
+    [_ALTERNATE2]    = {ENCODER_CCW_CW(SPEED_U, SPEED_D)},
     [_LED_SETTINGS] = {ENCODER_CCW_CW(RM_VALD, RM_VALU)}, // LED brightness
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
 };
@@ -201,7 +208,7 @@ bool oled_task_user(void) {
             break;
         case _ALTERNATE2:
             oled_write_ln(PSTR("Keys: MLS Mse Wheel"), false);
-            oled_write_ln(PSTR("Encoder: Throttle"), false);
+            oled_write_ln(PSTR("Encoder: Stride"), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
             oled_advance_page(true);
             break;
@@ -252,9 +259,9 @@ void rept_encoder_turns(void){
     oled_clean_write_ln(0, 6, buf);
 }
 
-void rept_throttle(void){
+void rept_Stride(void){
     char buf[18];
-    snprintf(buf, 18, "Throttle: %ld", en_speed);
+    snprintf(buf, 18, "Stride: %ld", en_speed);
     oled_clean_write_ln(0, 7, buf);
 }
 
@@ -293,21 +300,21 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
             }
             // clear_keyboard();
             break;
-        case SPEED_1: /* One the throttle */
+        case SPEED_1: /* One the Stride */
             if (record->event.pressed) {
                 // when pressed
                 en_speed = 1;
-                oled_clean_write_ln(3, 4, "///  Speed 1  \\\\\\");
+                oled_clean_write_ln(2, 4, "///  Stride 1  \\\\\\");
             } else {
                 // when released
             }
             // clear_keyboard();
             break;
-        case SPEED_0: /* Zero the throttle */
+        case SPEED_0: /* Zero the Stride */
             if (record->event.pressed) {
                 // when pressed
                 en_speed = 0;
-                oled_clean_write_ln(3, 4, "///  Speed 0  \\\\\\");
+                oled_clean_write_ln(2, 4, "///  Stride 0  \\\\\\");
             } else {
                 // when released
             }
@@ -327,8 +334,6 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         default:
             break;
     }
-    // rept_encoder_turns();
-    // rept_throttle();
     process_record_user(keycode, record);
     return true;
 }
@@ -342,11 +347,87 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         what process_record_kb does. */
     switch (keycode) {
 
+        case SPD_1_U:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL0);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 1 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+
+        case SPD_1_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL0);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 1 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+
+        case SPD_2_U:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL1);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 2 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+
+        case SPD_2_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL1);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 2 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+
+        case SPD_3_U:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL2);
+                register_code(KC_WH_U);
+                oled_clean_write_ln(1, 5, "///  Speed 3 In \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_U);
+                oled_clean_ln(5);
+            }
+            break;
+
+        case SPD_3_D:
+            if (record->event.pressed) {
+                // when pressed
+                tap_code(MS_ACL1);
+                register_code(KC_WH_D);
+                oled_clean_write_ln(1, 5, "///  Speed 3 Out \\\\\\");
+            } else {
+                // when released
+                unregister_code(KC_WH_D);
+                oled_clean_ln(5);
+            }
+            break;
+
         case ENMW_U:
             if (record->event.pressed) {
                 // when pressed
-                // register_code(KC_WH_U);
-                // unregister_code(KC_WH_U);
                 tap_code(KC_WH_U);
                 en_turns++;
                 oled_clean_ln(4);
@@ -360,7 +441,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case ENMW_D:
             if (record->event.pressed) {
                 // when pressed
-                // register_code(KC_WH_D);
                 tap_code(KC_WH_D);
                 en_turns--;
                 oled_clean_ln(4);
@@ -379,13 +459,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     en_turns++;
                 }else{
                     for (int i = 0; i < en_speed ; i++) {
-                        register_code(KC_WH_U);
+                        // register_code(KC_WH_U);
+                        tap_code(KC_WH_U);
                         en_turns++;
                     }
                 }
                 // en_turns = en_turns + en_speed;
                 oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "/// MLS In Scroll \\\\\\");
+                oled_clean_write_ln(0, 5, "// MLS In Scroll \\\\");
             } else {
                 // when released
                 unregister_code(KC_WH_U);
@@ -400,13 +481,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     en_turns--;
                 }else{
                     for (int i = 0; i < en_speed ; i++) {
-                        register_code(KC_WH_D);
+                        // register_code(KC_WH_D);
+                        tap_code(KC_WH_D);
                         en_turns--;
                     }
                 }
                 // en_turns = en_turns - en_speed;
                 oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "/// MLS Out Scroll \\\\\\");
+                oled_clean_write_ln(0, 5, "// MLS Out Scroll \\\\");
             } else {
                 // when released
                 unregister_code(KC_WH_D);
@@ -444,6 +526,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             break;
     }
     rept_encoder_turns();
-    rept_throttle();
+    rept_Stride();
     return true;
 };

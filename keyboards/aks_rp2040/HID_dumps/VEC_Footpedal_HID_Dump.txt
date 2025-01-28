@@ -1,0 +1,71 @@
+﻿VEC Footpedal HID Dump 1/24/2025, 1/26/2025
+
+pi@raspberrypi4:~ $ sudo usbhid-dump -a1:12  | grep -v : | xxd -r -p | hidrd-convert -o spec
+
+Usage Page (Consumer),          ; Consumer (0Ch)
+Usage (Programmable Buttons),   ; Programmable buttons (03h, named array)
+Collection (Application),
+    Collection (Logical),
+        Usage Page (LED),       ; LEDs (08h)
+        Usage (4Bh),
+        Report Size (8),
+        Report Count (35),
+        Output (Variable),
+    End Collection,
+    Collection (Logical),
+        Usage Page (Button),    ; Button (09h)
+        Usage Minimum (01h),
+        Usage Maximum (03h),
+        Logical Minimum (0),
+        Logical Maximum (1),
+        Report Count (3),
+        Report Size (1),
+        Input (Variable),
+        Report Count (1),
+        Report Size (5),
+        Input (Constant),
+        Report Count (1),
+        Report Size (8),
+        Input (Constant),
+    End Collection,
+End Collection
+
+The raw data:
+
+001:012:000:DESCRIPTOR         1737771564.363929
+ 05 0C 09 03 A1 01 A1 02 05 08 09 4B 75 08 95 23
+ 91 02 C0 A1 02 05 09 19 01 29 03 15 00 25 01 95
+ 03 75 01 81 02 95 01 75 05 81 01 95 01 75 08 81
+ 01 C0 C0
+
+
+
+sudo usbhid-dump -a1:12  | grep -v : | xxd -r -p | hidrd-convert -o code
+
+0x05, 0x0C, /*  Usage Page (Consumer),          */
+0x09, 0x03, /*  Usage (Programmable Buttons),   */
+0xA1, 0x01, /*  Collection (Application),       */
+0xA1, 0x02, /*      Collection (Logical),       */
+0x05, 0x08, /*          Usage Page (LED),       */
+0x09, 0x4B, /*          Usage (4Bh),            */
+0x75, 0x08, /*          Report Size (8),        */
+0x95, 0x23, /*          Report Count (35),      */
+0x91, 0x02, /*          Output (Variable),      */
+0xC0,       /*      End Collection,             */
+0xA1, 0x02, /*      Collection (Logical),       */
+0x05, 0x09, /*          Usage Page (Button),    */
+0x19, 0x01, /*          Usage Minimum (01h),    */
+0x29, 0x03, /*          Usage Maximum (03h),    */
+0x15, 0x00, /*          Logical Minimum (0),    */
+0x25, 0x01, /*          Logical Maximum (1),    */
+0x95, 0x03, /*          Report Count (3),       */
+0x75, 0x01, /*          Report Size (1),        */
+0x81, 0x02, /*          Input (Variable),       */
+0x95, 0x01, /*          Report Count (1),       */
+0x75, 0x05, /*          Report Size (5),        */
+0x81, 0x01, /*          Input (Constant),       */
+0x95, 0x01, /*          Report Count (1),       */
+0x75, 0x08, /*          Report Size (8),        */
+0x81, 0x01, /*          Input (Constant),       */
+0xC0,       /*      End Collection,             */
+0xC0        /*  End Collection                  */

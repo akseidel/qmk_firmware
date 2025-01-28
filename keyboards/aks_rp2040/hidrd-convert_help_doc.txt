@@ -1,0 +1,26 @@
+﻿hidrd-convert -h
+
+
+Usage: hidrd-convert [OPTION]... [INPUT [OUTPUT]]
+Convert a HID report descriptor.
+With no INPUT, or when INPUT is -, read standard input.
+With no OUTPUT, or when OUTPUT is -, write standard output.
+
+Options:
+  -h, --help                       this help message
+  --hf, --help-formats             description of formats
+                                   and their options
+  -i, --input-format=FORMAT        use FORMAT for input
+  --io=LIST, --input-options=LIST  use LIST input format options
+  -o, --output-format=FORMAT       use FORMAT for output
+  --oo=LIST, --output-options=LIST use LIST output format options
+
+Formats:
+
+  natv [IO] - native
+   xml [IO] - XML
+  spec [ O] - specification example
+  code [ O] - source code
+
+Default options are -i natv -o natv.
+

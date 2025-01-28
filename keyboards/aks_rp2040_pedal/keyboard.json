@@ -11,15 +11,16 @@
         "pid": "0x00FF"
     },
     "features": {
-        "bootmagic": false,
-        "mousekey": true
+        // "bootmagic": false,
+        "programmable_button": true,
+        // "mousekey": false
     },
     "build": {
         "lto": true
     },
-    "bootmagic": {
-        "matrix": [1, 2]
-    },
+    // "bootmagic": {
+    //     "matrix": [1, 2]
+    // },
     "matrix_pins": {
         "direct": [
             [null, null, "GP0"],

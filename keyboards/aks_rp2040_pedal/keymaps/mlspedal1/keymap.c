@@ -16,13 +16,59 @@
 
 #include QMK_KEYBOARD_H
 
+
+enum custom_keycodes {
+    PEDAL_L = SAFE_RANGE, // Left foot pedal simulation
+    PEDAL_M,              // Middle foot pedal simulation
+    PEDAL_R              // Right foot pedal simulation
+};
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [0]        = LAYOUT(              KC_NO,
                         KC_NO, KC_NO, KC_NO,
                         KC_NO, KC_NO, KC_NO,
-                        KC_NO, KC_NO, KC_NO,
-                        MS_BTN1, MS_BTN2, MS_BTN3
+                        PB_1, PB_2, PB_4,
+                        PEDAL_L,  PEDAL_M,  PEDAL_R
                         )
 };
 
 
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case PEDAL_L:
+            if (record->event.pressed) {
+                // when pressed
+                programmable_button_register(0);
+
+            } else {
+                // when released
+                programmable_button_unregister(0);
+            }
+            break;
+
+        case PEDAL_M:
+            if (record->event.pressed) {
+                // when pressed
+                programmable_button_register(1);
+
+            } else {
+                // when released
+                programmable_button_unregister(1);
+            }
+            break;
+
+        case PEDAL_R:
+            if (record->event.pressed) {
+                // when pressed
+                programmable_button_register(2);
+
+            } else {
+                // when released
+                programmable_button_unregister(2);
+            }
+            break;
+        default:
+            break;
+    }
+    return true;
+};

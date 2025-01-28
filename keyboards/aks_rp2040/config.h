@@ -50,5 +50,27 @@
 // #define MK_MOMENTARY_ACCEL
 #define MK_3_SPEED
 #define MK_COMBINED
-#define MOUSEKEY_WHEEL_INTERVAL 8000
-#define MOUSEKEY_WHEEL_DELAY 1
+#define MOUSEKEY_WHEEL_DELAY 10  // Time between wheel movements in default mode.
+#define MOUSEKEY_WHEEL_INTERVAL 60  // Time between wheel movements in default mode.
+#define MOUSEKEY_WHEEL_TIME_TO_MAX	20 // Time until maximum scroll speed is reached
+#define MK_W_INTERVAL_UNMOD 10 // default is 40
+#define MK_W_INTERVAL_0 360 // MS_ACL0 , default 360
+#define MK_W_INTERVAL_1 120 // MS_ACL1 , default 120
+#define MK_W_INTERVAL_2 20 // MS_ACL2 , default 360
+
+/*
+Accelerated (default mouse):
+These are the default values if not modified like above.
+MOUSEKEY_WHEEL_DELAY	10	Delay between pressing a wheel key and wheel movement
+MOUSEKEY_WHEEL_INTERVAL	80	Time between wheel movements
+MOUSEKEY_WHEEL_DELTA	1	Wheel movement step size (leave this be!)
+MOUSEKEY_WHEEL_MAX_SPEED	8	Maximum number of scroll steps per scroll action
+MOUSEKEY_WHEEL_TIME_TO_MAX	40	Time until maximum scroll speed is reached
+The following does not apply for our use being scroll only.
+(cursor) Holding movement keys accelerates the cursor until it reaches its maximum speed.
+(cursor) MOUSEKEY_DELAY	10	Delay between pressing a movement key and cursor movement
+(cursor) MOUSEKEY_INTERVAL	20	Time between cursor movements in milliseconds
+(cursor) MOUSEKEY_MOVE_DELTA	8	Step size
+(cursor) MOUSEKEY_MAX_SPEED	10	Maximum cursor speed at which acceleration stops
+(cursor) MOUSEKEY_TIME_TO_MAX	30	Time until maximum cursor speed is reached
+*/
