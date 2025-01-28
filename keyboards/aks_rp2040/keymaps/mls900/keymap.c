@@ -1,4 +1,5 @@
-/* Copyright 2025 Miles Seidel <mlseidel@gmail.com>
+/*
+ * Copyright 2025 Miles Seidel <mlseidel@gmail.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
 #include QMK_KEYBOARD_H
 // #include "print.h" // in use only when trying to debug
 
+/* Every reference name must be first defined in enum before it shows up anywhere in the code. */
 enum layer_names { _BASE,
                 _ALTERNATE1,
                 _ALTERNATE2,
@@ -24,6 +26,7 @@ enum layer_names { _BASE,
                 _STANDBY
                 };
 
+/* Every reference name must be first defined in enum before it shows up anywhere in the code. */
 enum custom_keycodes {
     ENC_U = SAFE_RANGE,   // Encoder as mouse wheel up
     ENC_D,               // Encoder as mouse wheel dn
@@ -50,37 +53,37 @@ enum custom_keycodes {
 /* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* One shot strides and also standard out of box mouse wheel action */
-    [_BASE]        = LAYOUT(TO(_ALTERNATE1),                               // encoder press goto _ALTERNATE1
-                            TURN_0,  KC_NO,   KC_NO,                       // counter zero
-                            GOTO_0,   KC_NO, STRIDE_1,                     // goto postion 0, kc_no, set stride to 1
+    [_BASE]        = LAYOUT(TO(_ALTERNATE1),                       // encoder press goto _ALTERNATE1
+                            TURN_0,  KC_NO,   KC_NO,               // counter zero
+                            GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
                             ENC_U, KC_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
                             ENC_D, KC_WH_D, ENC_STRIDE_DEC         // 1 shot d click stride x,reg. wheel,inc stride
                              ),
     /* QMK accelerated mouse wheel action
     The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges.
     Speed is currently set at compile time. Position counter n/a. */
-    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                            // encoder press goto _ALTERNATE2
-                            TURN_0,  KC_NO,   KC_NO,                      // counter zero
-                            GOTO_0,  KC_NO,   KC_NO,                      // goto postion 0
-                            SPD_1_U, SPD_2_U, SPD_3_U,                    // up @ spd 1, up @ spd 2, up @ spd 3
-                            SPD_1_D, SPD_2_D, SPD_3_D                     // dn @ spd 1, dn @ spd 2, dn @ spd 3
+    [_ALTERNATE1]    = LAYOUT(TO(_ALTERNATE2),                     // encoder press goto _ALTERNATE2
+                            TURN_0,  KC_NO,   KC_NO,               // counter zero
+                            GOTO_0,  KC_NO,   KC_NO,               // goto postion 0
+                            SPD_1_U, SPD_2_U, SPD_3_U,             // up @ spd 1, up @ spd 2, up @ spd 3
+                            SPD_1_D, SPD_2_D, SPD_3_D              // dn @ spd 1, dn @ spd 2, dn @ spd 3
                              ),
     /* MLS mouse wheel speed control. The encoder sets stride
     while keys are used for up and down at stride distance. */
-    [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                           // encoder press goto _LED_SETTINGS
-                            TURN_0,   KC_NO, STRIDE_1,                     // counter 0, kc_no, set stride to 1
-                            GOTO_0,   KC_NO, STRIDE_1,                     // goto postion 0, kc_no, set stride to 1
-                            MLS_WHLU, MLS_WHLU, MLS_WHLU,                  // all keys do up
-                            MLS_WHLD, MLS_WHLD, MLS_WHLD                   // all keys do dn
+    [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                   // encoder press goto _LED_SETTINGS
+                            TURN_0,   KC_NO, STRIDE_1,             // counter 0, kc_no, set stride to 1
+                            GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
+                            MLS_WHLU, MLS_WHLU, MLS_WHLU,          // all keys do up
+                            MLS_WHLD, MLS_WHLD, MLS_WHLD           // all keys do dn
                              ),
     /* LED animation setting layer */
-    [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                                 // encoder press goto _STANDBY
-                             RM_NEXT, KC_NO, RM_TOGG,                      // Next RGB animation, kc_no, Animation on/off
+    [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                         // encoder press goto _STANDBY
+                             RM_NEXT, KC_NO, RM_TOGG,              // Next RGB animation, kc_no, Animation on/off
                              KC_NO, KC_NO, KC_NO,
-                             RM_VALU, RM_HUEU, RM_SPDU,                    // intensity up, color hue up, amim speed up
-                             RM_VALD, RM_HUED, RM_SPDD                     // intensity dn, color hue dn, amim speed dn
+                             RM_VALU, RM_HUEU, RM_SPDU,            // intensity up, color hue up, amim speed up
+                             RM_VALD, RM_HUED, RM_SPDD             // intensity dn, color hue dn, amim speed dn
                              ),
-    [_STANDBY]      = LAYOUT(MSG_READY,                                     // encoder press goto _BASE
+    [_STANDBY]      = LAYOUT(MSG_READY,                            // encoder press goto _BASE
                              MSG_STBY, MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
@@ -89,20 +92,20 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 
-static int32_t en_turns = 0;    /* being used to record number of encoder turns */
-static int32_t stride = 1;
+static int16_t en_turns = 0;    /* being used to record number of encoder turns */
+static int16_t stride = 1;      /* stride is a distance (number of encoder turns) concept*/
 
 #ifdef ENCODER_MAP_ENABLE
 /*  This sets what the encoder turning does at each layer.
-    There has to be an enum setting for each defined layer.
+    There has to be an enum setting for each defined layer and action.
     Otherwise there will be a compile error.
 
     Keep in mind the transparency encoding applies.
 */
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)},
-    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENC_U,ENC_D)},
-    [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)},
+    [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
+    [_ALTERNATE1]    = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
+    [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)}, // custom function for encoder turn being change strive value
     [_LED_SETTINGS] = {ENCODER_CCW_CW(RM_VALD, RM_VALU)}, // LED brightness
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
 };
@@ -115,10 +118,11 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 #        define SHOW_LOGO 1000
 #    endif
 
-// settings for showing logo only at startup
+// variables used for showing logo only at startup
 static bool     clear_logo      = true;
 static uint32_t oled_logo_timer = 0;
 
+/* constant that is the data for the logo graphic */
 static const char PROGMEM aks_mls_logo[] = {
     // 'mls_logo_layers_totop', 128x24px
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x20, 0x10, 0x18, 0x08, 0xc4, 0xc4, 0x84, 0x02, 0x02, 0x02, 0x83, 0xc1, 0x01, 0x01, 0xc1, 0xc1, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x82, 0xc2, 0x42, 0x44, 0x44, 0x84, 0x08, 0x18, 0x10, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xc0, 0x80, 0x00, 0x00, 0x00, 0x80, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -195,6 +199,8 @@ bool oled_task_user(void) {
     as the oled_task_kb allows it. That happens when oled_task_kb
     returns true. Basically on a continuous basis depending on
     what oled_task_kb does. */
+
+    /* writing to the oled per the current layer */
     switch (get_highest_layer(layer_state)) {
         case _BASE:
             oled_write_ln(PSTR("Keys: Std Mse Wheel"), false);
@@ -253,23 +259,24 @@ void oled_clean_ln( uint8_t ln_y) {
     oled_write_ln(PSTR(""), false);
 }
 
-void rept_encoder_turns(void){
-    char buf[14];
-    snprintf(buf, 14, "Pos: %ld", en_turns);
-    oled_clean_write_ln(0, 6, buf);
-}
+// void report_encoder_turns(void){
+//     char buf[14];
+//     snprintf(buf, 14, "Pos: %d", en_turns);
+//     oled_clean_write_ln(0, 6, buf);
+// }
 
-void rept_Stride(void){
-    char buf[18];
-    snprintf(buf, 18, "Stride: %ld", stride);
-    oled_clean_write_ln(0, 7, buf);
-}
+// void report_stride(void){
+//     char buf[18];
+//     snprintf(buf, 18, "Stride: %d", stride);
+//     oled_clean_write_ln(0, 7, buf);
+// }
 
-void rept_position_status(void){
+void report_position_etc(void){
+    /* oled display position value and other information */
     char buf[18];
-    snprintf(buf, 18, "Pos: %ld", en_turns);
+    snprintf(buf, 18, "Pos: %d", en_turns);
     oled_clean_write_ln(0, 6, buf);
-    snprintf(buf, 18, "Stride: %ld", stride);
+    snprintf(buf, 18, "Stride: %d", stride);
     oled_clean_write_ln(0, 7, buf);
 }
 
@@ -278,8 +285,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         as the process_record__kb allows it. That happens when process_record_kb
         returns true. Basically on a continuous basis depending on
         what process_record_kb does. */
+    /*
+    tap_code(keycode) is press followed by release
+    register_code(keycode) is press
+    unregister_code(keycode) is release
+    */
     switch (keycode) {
         case ENC_STRIDE_INC:
+        /* Encoder turn increases the stride value by 1 */
             if (record->event.pressed) {
                 // when pressed
                 stride++;
@@ -290,6 +303,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             break;
 
         case ENC_STRIDE_DEC:
+        /* Encoder turn decreases the stride value by 1 */
             if (record->event.pressed) {
                 // when pressed
                 if (stride > 1) {
@@ -300,7 +314,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // when released
             }
             break;
-        case TURN_0: /* Zero the encoder counter */
+        case TURN_0:
+        /* Resets the encoder turns counter to 0 */
             if (record->event.pressed) {
                 // when pressed
                 en_turns = 0;
@@ -309,7 +324,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // when released
             }
             break;
-        case STRIDE_1: /* One the Stride */
+        case STRIDE_1:
+        /* Resets the stride value to 1*/
             if (record->event.pressed) {
                 // when pressed
                 stride = 1;
@@ -318,7 +334,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // when released
             }
             break;
-        case MSG_STBY: /* Standby Message */
+        case MSG_STBY:
+        /* oled display the standby message, used when a key is pressed
+        while in standby mode to remind user they are in standby mode.
+        Otherwise they might wonder why nothing happens. */
             if (record->event.pressed) {
                 // when pressed
                 oled_clean_write_ln(1, 4, "// Standby Mode! \\\\");
@@ -329,6 +348,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_1_U:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 1, send continuous mouse wheel up events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL0);
@@ -341,6 +363,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_1_D:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 1, send continuous mouse wheel dn events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL0);
@@ -353,6 +378,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_2_U:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 2, send continuous mouse wheel up events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL1);
@@ -365,6 +393,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_2_D:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 2, send continuous mouse wheel dn events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL1);
@@ -377,6 +408,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_3_U:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 3, send continuous mouse wheel up events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL2);
@@ -389,6 +423,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case SPD_3_D:
+        /* After first setting accelerated (actually constant) mouse wheel event speed to
+        speed 3, send continuous mouse wheel dn events. As of this time, we cannot keep
+        count of the number sent, so the en_turns is not updated.*/
             if (record->event.pressed) {
                 // when pressed
                 tap_code(MS_ACL2);
@@ -401,7 +438,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case ENC_U:
-            /* Note: an encoder event comes as a press/release pair */
+        /* Send single mouse wheel up, stride times.
+        Used when encoder is turned (ccw).
+        The en_turns value is updated for each wheel up sent.
+        Note: an encoder event comes as a press/release pair */
             if (record->event.pressed) {
                 // when pressed
                 for (int i = 0; i < stride ; i++) {
@@ -415,7 +455,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case ENC_D:
-            /* Note: an encoder event comes as a press/release pair */
+        /* Send single mouse wheel dn, stride times.
+        Used when encoder is turned (cw).
+        The en_turns value is updated for each wheel dn sent.
+        Note: an encoder event comes as a press/release pair */
             if (record->event.pressed) {
                 // when pressed
                 for (int i = 0; i < stride ; i++) {
@@ -429,6 +472,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case MLS_WHLU:
+        /* currently identical to ENC_U
+        Send single mouse wheel up, stride times.
+        Used for keypresses in MSL mode.
+        The en_turns value is updated for each wheel up sent.*/
             if (record->event.pressed) {
                 // when pressed
                 for (int i = 0; i < stride ; i++) {
@@ -444,6 +491,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             }
             break;
         case MLS_WHLD:
+        /* currently identical to ENC_D
+        Send single mouse wheel dn, stride times.
+        Used for keypresses in MSL mode.
+        The en_turns value is updated for each wheel dn sent.
+        Note: an encoder event comes as a press/release pair */
             if (record->event.pressed) {
                 // when pressed
                 for (int i = 0; i < stride ; i++) {
@@ -458,7 +510,9 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // unregister_code(KC_WH_D);
             }
             break;
-        case GOTO_0: /* Goto position 0 */
+        case GOTO_0:
+        /* Sends mouse wheel up or mouse wheel dn commands the number of times
+        required to return to 0 position.*/
             if (record->event.pressed) {
                 // when pressed
                 while (en_turns != 0){
@@ -476,7 +530,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 // when released
             }
             break;
-        case MSG_READY: /* Ready Message */
+        case MSG_READY:
+        /* oled display a ready message*/
             if (record->event.pressed) {
                 // when pressed
                 oled_clean_ln(4);
@@ -487,7 +542,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
             break;
 
-        case LAY_F: /* Ready Message */
+        case LAY_F:
+        /* not implemented, intended to be key press jumps to next layer*/
             if (record->event.pressed) {
                 // when pressed
 
@@ -497,7 +553,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
             break;
 
-        case LAY_B: /* Ready Message */
+        case LAY_B:
+        /* not implemented, intended to be key press jumps to previous layer*/
             if (record->event.pressed) {
                 // when pressed
 
@@ -511,6 +568,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         default:
             break;
     }
-    rept_position_status();
+    report_position_etc();  // update oled display for position etc.
     return true;
 };
