@@ -195,8 +195,8 @@ void oled_clean_ln( uint8_t ln_y) {
     oled_write_ln(PSTR(""), false);
 }
 
-void report_position_etc(void){
-    /* oled display position value and other information */
+void report_pos(void){
+    /* oled display position value */
     char buf[17];
     if (position_valid){
         snprintf(buf, 17, "Pos: %d", en_turns);
@@ -204,6 +204,11 @@ void report_position_etc(void){
     } else {
         oled_clean_write_ln(0, 6, "Pos: Now Invalid");
     }
+}
+
+void report_stride(void){
+    /* oled display stride value*/
+    char buf[17];
     switch (active_layer) {
         case _3SPEEDACL:
             oled_clean_ln(7);
@@ -213,6 +218,11 @@ void report_position_etc(void){
             oled_clean_write_ln(0, 7, buf);
             break;
     }
+}
+
+void report_position_etc(void){
+    report_pos();
+    report_stride();
 }
 
 bool oled_task_kb(void) {
@@ -305,7 +315,7 @@ static const uint8_t REP_DELAY_MS[] PROGMEM = {
     // Subsequent repeats in ms.
     10};
 
-void countable_wh_u(bool pressed){
+void do_countable_wh_u(bool pressed){
     static deferred_token rep_token = INVALID_DEFERRED_TOKEN;
     if (!pressed) { // key released: stop repeating.
     cancel_deferred_exec(rep_token);
@@ -314,6 +324,7 @@ void countable_wh_u(bool pressed){
     uint32_t thiskey_rep_callback(uint32_t trigger_time, void* cb_arg) {
         tap_code(KC_WH_U);
         en_turns++;
+        report_pos();
         if (repeat_cnt < sizeof(REP_DELAY_MS) - 1) {
             ++repeat_cnt;
         }
@@ -323,13 +334,14 @@ void countable_wh_u(bool pressed){
     oled_clean_ln(4);
     oled_clean_write_ln(4, 5, "+ Hyper In +");
     en_turns++;
+    report_pos();
     // Schedule key to repeat.
     rep_token = defer_exec(REP_DELAY_MS[0], thiskey_rep_callback, NULL);
     repeat_cnt = 0;
   }
 }
 
-void countable_wh_d(bool pressed){
+void do_countable_wh_d(bool pressed){
     static deferred_token rep_token = INVALID_DEFERRED_TOKEN;
     if (!pressed) { // key released: stop repeating.
     cancel_deferred_exec(rep_token);
@@ -338,6 +350,7 @@ void countable_wh_d(bool pressed){
     uint32_t thiskey_rep_callback(uint32_t trigger_time, void* cb_arg) {
         tap_code(KC_WH_D);
         en_turns--;
+        report_pos();
         if (repeat_cnt < sizeof(REP_DELAY_MS) - 1) {
             ++repeat_cnt;
         }
@@ -347,11 +360,251 @@ void countable_wh_d(bool pressed){
     oled_clean_ln(4);
     oled_clean_write_ln(4, 5, "- Hyper Out -");
     en_turns--;
+    report_pos();
     // Schedule key to repeat.
     rep_token = defer_exec(REP_DELAY_MS[0], thiskey_rep_callback, NULL);
     repeat_cnt = 0;
   }
 }
+void do_enc_stride_inc(bool pressed){
+    /* Encoder turn increases the stride value by 1 */
+    if (pressed) {
+        stride++;
+        oled_clean_write_ln(1, 5, "|+|  Stride Chg  |+|");
+        }
+}
+
+void do_enc_stride_dec(bool pressed){
+    /* Encoder turn decreases the stride value by 1 */
+    if (pressed) {
+        if (stride > 1) {
+            stride--;
+            oled_clean_write_ln(1, 5, "|-|  Stride Chg  |-|");
+        }
+    }
+}
+
+void do_turn_0(bool pressed){
+    /* Resets the encoder turns counter to 0 */
+    if (pressed) {
+        en_turns = 0;
+        position_valid = true;
+        oled_clean_write_ln(3, 4, "000  Zero Pos 000");
+        oled_clean_ln(5);
+    }
+}
+
+void do_stride_1(bool pressed){
+    /* Resets the stride value to 1*/
+    if (pressed) {
+        stride = 1;
+        oled_clean_write_ln(1, 5, "|1| Stride Reset |1|");
+    }
+}
+
+void do_msg_stby(bool pressed){
+    /* oled display the standby message, used when a key is pressed
+    while in standby mode to remind user they are in standby mode.
+    Otherwise they might wonder why nothing happens. */
+    if (pressed) {
+        oled_clean_write_ln(1, 4, "!@# Standby Mode !@#");
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_1_u(bool pressed) {
+    /* After first setting accelerated (actually constant) mouse wheel event speed to
+    speed 1, send continuous mouse wheel up events. As of this time, we cannot keep
+    count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        // when pressed
+        tap_code(MS_ACL0);
+        register_code(KC_WH_U);
+        oled_clean_write_ln(2, 5, "+ Speed 1 In +");
+        position_valid = false;
+    } else {
+        // when released
+        unregister_code(KC_WH_U);
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_1_d(bool pressed) {
+/* After first setting accelerated (actually constant) mouse wheel event speed to
+speed 1, send continuous mouse wheel dn events. As of this time, we cannot keep
+count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        // when pressed
+        tap_code(MS_ACL0);
+        register_code(KC_WH_D);
+        oled_clean_write_ln(3, 5, "- Speed 1 Out -");
+        position_valid = false;
+    } else {
+        // when released
+        unregister_code(KC_WH_D);
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_2_u(bool pressed) {
+/* After first setting accelerated (actually constant) mouse wheel event speed to
+speed 2, send continuous mouse wheel up events. As of this time, we cannot keep
+count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        // when pressed
+        tap_code(MS_ACL1);
+        register_code(KC_WH_U);
+        oled_clean_write_ln(3, 5, "++ Speed 2 In ++");
+        position_valid = false;
+    } else {
+        // when released
+        unregister_code(KC_WH_U);
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_2_d(bool pressed) {
+/* After first setting accelerated (actually constant) mouse wheel event speed to
+speed 2, send continuous mouse wheel dn events. As of this time, we cannot keep
+count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        tap_code(MS_ACL1);
+        register_code(KC_WH_D);
+        oled_clean_write_ln(2, 5, "-- Speed 2 Out --");
+        position_valid = false;
+    } else {
+        unregister_code(KC_WH_D);
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_3_u(bool pressed) {
+/* After first setting accelerated (actually constant) mouse wheel event speed to
+speed 3, send continuous mouse wheel up events. As of this time, we cannot keep
+count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        tap_code(MS_ACL2);
+        register_code(KC_WH_U);
+        oled_clean_write_ln(1, 5, "+++ Speed 3 In +++");
+        position_valid = false;
+    } else {
+        unregister_code(KC_WH_U);
+        oled_clean_ln(5);
+    }
+}
+
+void do_spd_3_d(bool pressed) {
+ /* After first setting accelerated (actually constant) mouse wheel event speed to
+speed 3, send continuous mouse wheel dn events. As of this time, we cannot keep
+count of the number sent, so the en_turns is not updated.*/
+    if (pressed) {
+        tap_code(MS_ACL2);
+        register_code(KC_WH_D);
+        oled_clean_write_ln(1, 5, "--- Speed 3 Out ---");
+        position_valid = false;
+    } else {
+        unregister_code(KC_WH_D);
+        oled_clean_ln(5);
+    }
+}
+
+void do_enc_u(bool pressed) {
+/* Send single mouse wheel up, stride times.
+Used when encoder is turned (ccw).
+The en_turns value is updated for each wheel up sent.
+Note: an encoder event comes as a press/release pair */
+    if (pressed) {
+        for (int i = 0; i < stride ; i++) {
+                tap_code(KC_WH_U);
+                en_turns++;
+            }
+        oled_clean_ln(4);
+        oled_clean_write_ln(2, 5, "+++ In Scroll +++");
+    }
+}
+
+void do_enc_d(bool pressed) {
+/* Send single mouse wheel dn, stride times.
+Used when encoder is turned (cw).
+The en_turns value is updated for each wheel dn sent.
+Note: an encoder event comes as a press/release pair */
+    if (pressed) {
+        for (int i = 0; i < stride ; i++) {
+                tap_code(KC_WH_D);
+                en_turns--;
+            }
+        oled_clean_ln(4);
+        oled_clean_write_ln(2, 5, "--- Out Scroll ---");
+    }
+}
+
+
+void do_mls_whlu (bool pressed) {
+/* currently identical to ENC_U
+Send single mouse wheel up, stride times.
+Used for keypresses in MSL mode.
+The en_turns value is updated for each wheel up sent.*/
+    if (pressed) {
+        for (int i = 0; i < stride ; i++) {
+            // register_code(KC_WH_U); // NO, does not help!
+            tap_code(KC_WH_U);
+            en_turns++;
+        }
+        oled_clean_ln(4);
+        oled_clean_write_ln(0, 5, "+++ MLS In Scroll +++");
+    }
+}
+
+void do_mls_whld (bool pressed) {
+/* currently identical to ENC_D
+Send single mouse wheel dn, stride times.
+Used for keypresses in MSL mode.
+The en_turns value is updated for each wheel dn sent.
+Note: an encoder event comes as a press/release pair */
+    if (pressed) {
+        for (int i = 0; i < stride ; i++) {
+            // register_code(KC_WH_D); // NO, does not help!
+            tap_code(KC_WH_D);
+            en_turns--;
+        }
+        oled_clean_ln(4);
+        oled_clean_write_ln(0, 5, "--- MLS Out Scroll ---");
+    }
+}
+
+void do_goto_0(bool pressed) {
+/* Sends mouse wheel up or mouse wheel dn commands the number of times
+required to return to 0 position.*/
+    if (pressed) {
+        if (position_valid){
+        while (en_turns != 0){
+            if (en_turns < 0) {
+                tap_code(KC_WH_U);
+                en_turns++;
+            } else if (en_turns > 0) {\
+                tap_code(KC_WH_D);
+                en_turns--;
+            }
+        }
+        oled_clean_ln(4);
+        oled_clean_write_ln(1, 5, "=> Scrolled To 0 <=");
+        } else {
+            oled_clean_ln(4);
+            oled_clean_write_ln(1, 5, "!! Not Applicable !!");
+        }
+    }
+}
+
+void do_msg_ready(bool pressed){
+/* oled display a ready message*/
+    if (pressed) {
+        oled_clean_ln(4);
+        oled_clean_write_ln(3, 5, "---  Ready  ---");
+    } else {
+        layer_move(0);
+    }
+}
+
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     /*
@@ -366,333 +619,131 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     */
 
     switch (keycode) {
-        case STD_WH_U:
-        /* Standard QMK mouse wheel up. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                register_code(KC_WH_U);
-                position_valid = false;
-                oled_clean_ln(4);
-                oled_clean_write_ln(4, 5, "+ Scroll In +");
-            } else {
-                // when released
-                unregister_code(KC_WH_U);
-                oled_clean_ln(5);
-            }
-            break;
-
-        case STD_WH_D:
-        /* Standard QMK mouse wheel dn. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                register_code(KC_WH_D);
-                oled_clean_ln(4);
-                oled_clean_write_ln(3, 5, "- Scroll Out -");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_D);
-                oled_clean_ln(5);
-            }
-            break;
-
         case EXP_WH_U:
             /* Hyper standard QMK mouse wheel up, keeping
             count of the number sent, so the en_turns is not updated.*/
-            countable_wh_u(record->event.pressed);
+            do_countable_wh_u(record->event.pressed);
             break;
 
         case EXP_WH_D:
             /* Hyper standard QMK mouse wheel up, keeping
             count of the number sent, so the en_turns is not updated.*/
-            countable_wh_d(record->event.pressed);
+            do_countable_wh_d(record->event.pressed);
             break;
 
         case ENC_STRIDE_INC:
-        /* Encoder turn increases the stride value by 1 */
-            if (record->event.pressed) {
-                stride++;
-                oled_clean_write_ln(1, 5, "|+|  Stride Chg  |+|");
-            } else {
-            }
+            /* Encoder turn increases the stride value by 1 */
+            do_enc_stride_inc(record->event.pressed);
             break;
 
         case ENC_STRIDE_DEC:
-        /* Encoder turn decreases the stride value by 1 */
-            if (record->event.pressed) {
-                // when pressed
-                if (stride > 1) {
-                    stride--;
-                    oled_clean_write_ln(1, 5, "|-|  Stride Chg  |-|");
-                }
-            } else {
-                // when released
-            }
+            /* Encoder turn decreases the stride value by 1 */
+            do_enc_stride_dec(record->event.pressed);
             break;
+
         case TURN_0:
-        /* Resets the encoder turns counter to 0 */
-            if (record->event.pressed) {
-                // when pressed
-                en_turns = 0;
-                position_valid = true;
-                oled_clean_write_ln(3, 4, "000  Zero Pos 000");
-                oled_clean_ln(5);
-            } else {
-                // when released
-            }
+          /* Resets the encoder turns counter to 0 */
+            do_turn_0(record->event.pressed);
             break;
+
         case STRIDE_1:
-        /* Resets the stride value to 1*/
-            if (record->event.pressed) {
-                // when pressed
-                stride = 1;
-                oled_clean_write_ln(1, 5, "|1| Stride Reset |1|");
-            } else {
-                // when released
-            }
+           /* Resets the stride value to 1*/
+            do_stride_1(record->event.pressed);
             break;
+
         case MSG_STBY:
-        /* oled display the standby message, used when a key is pressed
-        while in standby mode to remind user they are in standby mode.
-        Otherwise they might wonder why nothing happens. */
-            if (record->event.pressed) {
-                // when pressed
-                oled_clean_write_ln(1, 4, "!@# Standby Mode !@#");
-                oled_clean_ln(5);
-            } else {
-                // when released
-            }
+            /* oled display the standby message, used when a key is pressed
+            while in standby mode to remind user they are in standby mode.
+            Otherwise they might wonder why nothing happens. */
+            do_msg_stby(record->event.pressed);
             break;
+
         case SPD_1_U:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 1, send continuous mouse wheel up events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL0);
-                register_code(KC_WH_U);
-                oled_clean_write_ln(2, 5, "+ Speed 1 In +");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_U);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 1, send continuous mouse wheel up events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_1_u(record->event.pressed);
             break;
+
         case SPD_1_D:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 1, send continuous mouse wheel dn events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL0);
-                register_code(KC_WH_D);
-                oled_clean_write_ln(3, 5, "- Speed 1 Out -");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_D);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 1, send continuous mouse wheel dn events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_1_d(record->event.pressed);
             break;
+
         case SPD_2_U:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 2, send continuous mouse wheel up events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL1);
-                register_code(KC_WH_U);
-                oled_clean_write_ln(3, 5, "++ Speed 2 In ++");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_U);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 2, send continuous mouse wheel up events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_2_u(record->event.pressed);
             break;
+
         case SPD_2_D:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 2, send continuous mouse wheel dn events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL1);
-                register_code(KC_WH_D);
-                oled_clean_write_ln(2, 5, "-- Speed 2 Out --");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_D);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 2, send continuous mouse wheel dn events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_2_d(record->event.pressed);
             break;
+
         case SPD_3_U:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 3, send continuous mouse wheel up events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL2);
-                register_code(KC_WH_U);
-                oled_clean_write_ln(1, 5, "+++ Speed 3 In +++");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_U);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 3, send continuous mouse wheel up events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_3_u(record->event.pressed);
             break;
+
         case SPD_3_D:
-        /* After first setting accelerated (actually constant) mouse wheel event speed to
-        speed 3, send continuous mouse wheel dn events. As of this time, we cannot keep
-        count of the number sent, so the en_turns is not updated.*/
-            if (record->event.pressed) {
-                // when pressed
-                tap_code(MS_ACL2);
-                register_code(KC_WH_D);
-                oled_clean_write_ln(1, 5, "--- Speed 3 Out ---");
-                position_valid = false;
-            } else {
-                // when released
-                unregister_code(KC_WH_D);
-                oled_clean_ln(5);
-            }
+            /* After first setting accelerated (actually constant) mouse wheel event speed to
+            speed 3, send continuous mouse wheel dn events. As of this time, we cannot keep
+            count of the number sent, so the en_turns is not updated.*/
+            do_spd_3_d(record->event.pressed);
             break;
+
         case ENC_U:
-        /* Send single mouse wheel up, stride times.
-        Used when encoder is turned (ccw).
-        The en_turns value is updated for each wheel up sent.
-        Note: an encoder event comes as a press/release pair */
-            if (record->event.pressed) {
-                // when pressed
-                for (int i = 0; i < stride ; i++) {
-                        tap_code(KC_WH_U);
-                        en_turns++;
-                    }
-                oled_clean_ln(4);
-                oled_clean_write_ln(2, 5, "+++ In Scroll +++");
-            } else {
-                // when released
-            }
+            /* Send single mouse wheel up, stride times.
+            Used when encoder is turned (ccw).
+            The en_turns value is updated for each wheel up sent.
+            Note: an encoder event comes as a press/release pair */
+            do_enc_u(record->event.pressed);
             break;
+
         case ENC_D:
-        /* Send single mouse wheel dn, stride times.
-        Used when encoder is turned (cw).
-        The en_turns value is updated for each wheel dn sent.
-        Note: an encoder event comes as a press/release pair */
-            if (record->event.pressed) {
-                // when pressed
-                for (int i = 0; i < stride ; i++) {
-                        tap_code(KC_WH_D);
-                        en_turns--;
-                    }
-                oled_clean_ln(4);
-                oled_clean_write_ln(2, 5, "--- Out Scroll ---");
-            } else {
-                // when released
-            }
+            /* Send single mouse wheel dn, stride times.
+            Used when encoder is turned (cw).
+            The en_turns value is updated for each wheel dn sent.
+            Note: an encoder event comes as a press/release pair */
+            do_enc_d(record->event.pressed);
             break;
+
         case MLS_WHLU:
-        /* currently identical to ENC_U
-        Send single mouse wheel up, stride times.
-        Used for keypresses in MSL mode.
-        The en_turns value is updated for each wheel up sent.*/
-            if (record->event.pressed) {
-                // when pressed
-                for (int i = 0; i < stride ; i++) {
-                    // register_code(KC_WH_U); // NO, does not help!
-                    tap_code(KC_WH_U);
-                    en_turns++;
-                }
-                oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "+++ MLS In Scroll +++");
-            } else {
-                // when released
-                // unregister_code(KC_WH_U);
-            }
+            /* currently identical to ENC_U
+            Send single mouse wheel up, stride times.
+            Used for keypresses in MSL mode.
+            The en_turns value is updated for each wheel up sent.*/
+            do_mls_whlu(record->event.pressed);
             break;
+
         case MLS_WHLD:
-        /* currently identical to ENC_D
-        Send single mouse wheel dn, stride times.
-        Used for keypresses in MSL mode.
-        The en_turns value is updated for each wheel dn sent.
-        Note: an encoder event comes as a press/release pair */
-            if (record->event.pressed) {
-                // when pressed
-                for (int i = 0; i < stride ; i++) {
-                    // register_code(KC_WH_D); // NO, does not help!
-                    tap_code(KC_WH_D);
-                    en_turns--;
-                }
-                oled_clean_ln(4);
-                oled_clean_write_ln(0, 5, "--- MLS Out Scroll ---");
-            } else {
-                // when released
-                // unregister_code(KC_WH_D);
-            }
+            /* currently identical to ENC_D
+            Send single mouse wheel dn, stride times.
+            Used for keypresses in MSL mode.
+            The en_turns value is updated for each wheel dn sent.
+            Note: an encoder event comes as a press/release pair */
+            do_mls_whld(record->event.pressed);
             break;
+
         case GOTO_0:
-        /* Sends mouse wheel up or mouse wheel dn commands the number of times
-        required to return to 0 position.*/
-            if (record->event.pressed) {
-                // when pressed
-                if (position_valid){
-                while (en_turns != 0){
-                    if (en_turns < 0) {
-                        tap_code(KC_WH_U);
-                        en_turns++;
-                    } else if (en_turns > 0) {\
-                        tap_code(KC_WH_D);
-                        en_turns--;
-                    }
-                }
-                oled_clean_ln(4);
-                oled_clean_write_ln(1, 5, "=> Scrolled To 0 <=");
-            } else {
-                oled_clean_ln(4);
-                oled_clean_write_ln(1, 5, "!! Not Applicable !!");
-            }
-            } else {
-                // when released
-            }
+            /* Sends mouse wheel up or mouse wheel dn commands the number of times
+            required to return to 0 position.*/
+            do_goto_0(record->event.pressed);
             break;
+
         case MSG_READY:
-        /* oled display a ready message*/
-            if (record->event.pressed) {
-                // when pressed
-                oled_clean_ln(4);
-                oled_clean_write_ln(3, 5, "---  Ready  ---");
-            } else {
-                layer_move(0);
-            }
+            /* oled display a ready message*/
+            do_msg_ready(record->event.pressed);
             return false;
             break;
-
-        case LAY_F:
-        /* not implemented, intended to be key press jumps to next layer*/
-            if (record->event.pressed) {
-                // when pressed
-
-            } else {
-                // layer_move(0);
-            }
-            return false;
-            break;
-
-        case LAY_B:
-        /* not implemented, intended to be key press jumps to previous layer*/
-            if (record->event.pressed) {
-                // when pressed
-
-            } else {
-                // layer_move(0);
-            }
-            return false;
-            break;
-
 
         default:
             break;
@@ -700,3 +751,54 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     report_position_etc();  // update oled display for position etc.
     return true;
 };
+
+
+// case STD_WH_U:
+        // /* Standard QMK mouse wheel up. As of this time, we cannot keep
+        // count of the number sent, so the en_turns is not updated.*/
+        //     if (record->event.pressed) {
+        //         register_code(KC_WH_U);
+        //         position_valid = false;
+        //         oled_clean_ln(4);
+        //         oled_clean_write_ln(4, 5, "+ Scroll In +");
+        //     } else {
+        //         unregister_code(KC_WH_U);
+        //         oled_clean_ln(5);
+        //     }
+        //     break;
+
+        // case STD_WH_D:
+        // /* Standard QMK mouse wheel dn. As of this time, we cannot keep
+        // count of the number sent, so the en_turns is not updated.*/
+        //     if (record->event.pressed) {
+        //         register_code(KC_WH_D);
+        //         oled_clean_ln(4);
+        //         oled_clean_write_ln(3, 5, "- Scroll Out -");
+        //         position_valid = false;
+        //     } else {
+        //         unregister_code(KC_WH_D);
+        //         oled_clean_ln(5);
+        //     }
+        //     break;
+
+  // case LAY_F:
+        // /* not implemented, intended to be key press jumps to next layer*/
+        //     if (record->event.pressed) {
+        //         // when pressed
+
+        //     } else {
+        //         // layer_move(0);
+        //     }
+        //     return false;
+        //     break;
+
+        // case LAY_B:
+        // /* not implemented, intended to be key press jumps to previous layer*/
+        //     if (record->event.pressed) {
+        //         // when pressed
+
+        //     } else {
+        //         // layer_move(0);
+        //     }
+        //     return false;
+        //     break;
