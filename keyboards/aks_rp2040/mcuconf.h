@@ -1,4 +1,4 @@
-/* Copyright 2022 Jose Pablo Ramirez <jp.ramangulo@gmail.com>
+/* Copyright 2023 Allan Seidel
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,13 @@
 #pragma once
 
 #include_next <mcuconf.h>
-
+/*
+ * As per the documentation ChibiOS/ARM Configuration :id=arm-configuration
+ * for spi_driver.
+ *
+ * A modification to the mcuconf.h is necessary to enable which spi port
+ * will be used.
+*/
 #undef RP_SPI_USE_SPI1
 #define RP_SPI_USE_SPI1 TRUE
 

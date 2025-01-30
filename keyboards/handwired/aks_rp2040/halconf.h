@@ -25,7 +25,6 @@
  * A modification to the mcuconf.h is also necessary to enable which spi port
  * will be used.
 */
-
 #undef HAL_USE_SPI
 #define HAL_USE_SPI TRUE
 
@@ -34,4 +33,3 @@
 
 #undef SPI_SELECT_MODE
 #define SPI_SELECT_MODE SPI_SELECT_MODE_PAD
-

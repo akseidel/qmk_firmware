@@ -3,7 +3,7 @@
     "manufacturer": "Doc MLS",
     "url": "",
     "maintainer": "Doc MLS, et al",
-    "product": "mls800",
+    "product": "mls_mpad_series",
     "processor": "RP2040",
     "bootloader": "rp2040",
     "usb": {

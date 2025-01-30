@@ -16,22 +16,14 @@
 
 #pragma once
 
-#include_next <halconf.h>
+#include_next <mcuconf.h>
 
 /*
  * As per the documentation ChibiOS/ARM Configuration :id=arm-configuration
  * for spi_driver.
  *
- * A modification to the mcuconf.h is also necessary to enable which spi port
+ * A modification to the mcuconf.h is necessary to enable which spi port
  * will be used.
 */
-
-#undef HAL_USE_SPI
-#define HAL_USE_SPI TRUE
-
-#undef SPI_USE_WAIT
-#define SPI_USE_WAIT TRUE
-
-#undef SPI_SELECT_MODE
-#define SPI_SELECT_MODE SPI_SELECT_MODE_PAD
-
+#undef RP_SPI_USE_SPI1
+#define RP_SPI_USE_SPI1 TRUE

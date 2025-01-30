@@ -1,29 +1,32 @@
-/* Copyright 2022 Jose Pablo Ramirez <jp.ramangulo@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2023 Allan Seidel (@Allan Seidel)
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
+
+/*
+ * Feature disable options
+ *  These options are also useful to firmware size reduction.
+ */
+
+/* disable debug print */
+//#define NO_DEBUG
+
+/* disable print */
+//#define NO_PRINT
+
+/* disable action features */
+//#define NO_ACTION_LAYER
+//#define NO_ACTION_TAPPING
+//#define NO_ACTION_ONESHOT
 
 /* OLED SPI Defines */
 #define OLED_DISPLAY_128X64
 #define OLED_IC OLED_IC_SH1106
 
 /* OLED SPI Pins */
-#define OLED_DC_PIN GP24
-#define OLED_CS_PIN GP22
-#define OLED_RST_PIN GP23
+#define OLED_DC_PIN GP11
+#define OLED_CS_PIN GP12
+#define OLED_RST_PIN GP13
 
 #define OLED_BRIGHTNESS 128
 
@@ -37,14 +40,12 @@
 #define SPI_DRIVER SPID1
 #define SPI_SCK_PIN GP26
 #define SPI_MOSI_PIN GP27
-#define SPI_MISO_PIN GP28
 
-/* Double tap the side button to enter bootloader */
+/* Double tap the pico reset button to enter bootloader. */
+/* Pico reset button is the RUN pin (side hole #30). */
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET
-#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP13
+#define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP25
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_TIMEOUT 500U
-
-#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 255
 
 /* Mousekey speed control */
 // #define MK_MOMENTARY_ACCEL
@@ -83,5 +84,3 @@ The following does not apply for our use being scroll only.
 (cursor) MOUSEKEY_MAX_SPEED	10	Maximum cursor speed at which acceleration stops
 (cursor) MOUSEKEY_TIME_TO_MAX	30	Time until maximum cursor speed is reached
 */
-
-
