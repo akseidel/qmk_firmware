@@ -22,8 +22,10 @@
 enum layer_names { _BASE,
                 _3SPEEDACL,
                 _ALTERNATE2,
-                _LED_SETTINGS,
-                _STANDBY
+                _STANDBY,
+                /* Always keep this layer to be the last declared layer_name enum so that the
+                scheme for the cycle layer key skips the _LED_SETUP layer.*/
+                _LED_SETUP
                 };
 
 /* Every reference name must be first defined in enum before it shows up anywhere in the code. */
@@ -38,7 +40,7 @@ enum custom_keycodes {
     MLS_WHLU,           // MLS control up
     MLS_WHLD,           // MLS control dn
     MSG_STBY,           // Show message standby
-    MSG_READY,          // Show message ready
+    EXIT_STBY,       // Special requirement when exiting standby
     SPD_1_U,            // Wheel up at accelerated speed 1
     SPD_1_D,            // Wheel down at accelerated speed 1
     SPD_2_U,            // Wheel up at accelerated speed 2
@@ -50,14 +52,15 @@ enum custom_keycodes {
     STD_WH_U,           // Standard QMK mouse wheel up, no counting
     STD_WH_D,           // Standard QMK mouse wheel dn, no counting
     EXP_WH_U,            // Exponential QMK mouse wheel up, with counting
-    EXP_WH_D             // Exponential QMK mouse wheel dn, with counting
+    EXP_WH_D,           // Exponential QMK mouse wheel dn, with counting
+    CYCLE_RAD_LYRS      // Cycle only through rad layers
 };
 
 
 /* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* One shot strides and also standard out of box mouse wheel action */
-    [_BASE]        = LAYOUT(TO(_3SPEEDACL),                       // encoder press goto _3SPEEDACL
+    [_BASE]        = LAYOUT(CYCLE_RAD_LYRS,                       // encoder press goto _3SPEEDACL
                             TURN_0,  KC_NO,   KC_NO,               // counter zero
                             GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
                             ENC_U, EXP_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
@@ -66,7 +69,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* QMK accelerated mouse wheel action
     The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges.
     Speed is currently set at compile time. Position counter n/a. */
-    [_3SPEEDACL]    = LAYOUT(TO(_ALTERNATE2),                     // encoder press goto _ALTERNATE2
+    [_3SPEEDACL]    = LAYOUT(CYCLE_RAD_LYRS,                     // encoder press goto _ALTERNATE2
                             TURN_0,  KC_NO,   KC_NO,               // counter zero
                             GOTO_0,  KC_NO,   KC_NO,               // goto postion 0
                             SPD_1_U, SPD_2_U, SPD_3_U,             // up @ spd 1, up @ spd 2, up @ spd 3
@@ -74,25 +77,28 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                              ),
     /* MLS mouse wheel speed control. The encoder sets stride
     while keys are used for up and down at stride distance. */
-    [_ALTERNATE2]    = LAYOUT(TO(_LED_SETTINGS),                   // encoder press goto _LED_SETTINGS
+    [_ALTERNATE2]    = LAYOUT(CYCLE_RAD_LYRS,                        // encoder press goto _LED_SETUP
                             TURN_0,   KC_NO, KC_NO,                // counter 0, kc_no, KC_NO
                             GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
                             MLS_WHLU, MLS_WHLU, MLS_WHLU,          // all keys do up
                             MLS_WHLD, MLS_WHLD, MLS_WHLD           // all keys do dn
                              ),
+
+    [_STANDBY]      = LAYOUT(EXIT_STBY,                            // encoder press goto _BASE
+                             TO(_LED_SETUP), MSG_STBY, MSG_STBY,
+                             MSG_STBY, MSG_STBY, MSG_STBY,
+                             MSG_STBY, MSG_STBY, MSG_STBY,
+                             MSG_STBY, MSG_STBY, MSG_STBY
+                             ),
+
     /* LED animation setting layer */
-    [_LED_SETTINGS] = LAYOUT(TO(_STANDBY),                         // encoder press goto _STANDBY
+    [_LED_SETUP] = LAYOUT(TO(_STANDBY),                         // encoder press goto _STANDBY
                              RM_NEXT, KC_NO, RM_TOGG,              // Next RGB animation, kc_no, Animation on/off
                              KC_NO, KC_NO, KC_NO,
                              RM_VALU, RM_HUEU, RM_SPDU,            // intensity up, color hue up, amim speed up
                              RM_VALD, RM_HUED, RM_SPDD             // intensity dn, color hue dn, amim speed dn
                              ),
-    [_STANDBY]      = LAYOUT(MSG_READY,                            // encoder press goto _BASE
-                             MSG_STBY, MSG_STBY, MSG_STBY,
-                             MSG_STBY, MSG_STBY, MSG_STBY,
-                             MSG_STBY, MSG_STBY, MSG_STBY,
-                             MSG_STBY, MSG_STBY, MSG_STBY
-                             )
+
 };
 
 
@@ -100,6 +106,18 @@ static int16_t en_turns = 0;    /* being used to record number of encoder turns 
 static int16_t stride = 1;      /* stride is a distance (number of encoder turns) concept*/
 static bool position_valid = true; /* flag indicating the position counter is valid */
 static int16_t active_layer = 0;  /* manually keeping track of current layer */
+static bool new_born = true;    /* in a fresh state */
+
+/* These values are used in the scheme to cycle through layers but skip some layers */
+#define LYR_CYCLE_START 0
+#define LYR_CYCLE_END 3
+
+#define MSG_LINE_ACTION 0
+#define MSG_LINE_POS 1
+#define MSG_LINE_STRIDE 2
+#define MSG_LINE_KEYS 4
+#define MSG_LINE_ENCODER 5
+#define MSG_LINE_ALT1 6
 
 
 #ifdef ENCODER_MAP_ENABLE
@@ -113,7 +131,7 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
     [_3SPEEDACL]    = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
     [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)}, // custom function for encoder turn being change strive value
-    [_LED_SETTINGS] = {ENCODER_CCW_CW(RM_VALD, RM_VALU)}, // LED brightness
+    [_LED_SETUP] = {ENCODER_CCW_CW(RM_VALD, RM_VALU)}, // LED brightness
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
 };
 #endif
@@ -122,7 +140,7 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
 
 // trying to render the logo only during startup
 #    ifndef SHOW_LOGO
-#        define SHOW_LOGO 1500
+#        define SHOW_LOGO 2000
 #    endif
 
 // variables used for showing logo only at startup
@@ -132,9 +150,177 @@ static uint32_t oled_logo_timer = 0;
 /* constant that is the data for the logo graphic */
 static const char PROGMEM mls_logo[] = {
     // 'mls_logo_layers_totop', 128x24px
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x20, 0x10, 0x18, 0x08, 0xc4, 0xc4, 0x84, 0x02, 0x02, 0x02, 0x83, 0xc1, 0x01, 0x01, 0xc1, 0xc1, 0x01, 0x01, 0x01, 0x01, 0x01, 0x03, 0x82, 0xc2, 0x42, 0x44, 0x44, 0x84, 0x08, 0x18, 0x10, 0x20, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xc0, 0x80, 0x00, 0x00, 0x00, 0x80, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x30, 0x40, 0x80, 0x80, 0x00, 0x3f, 0x01, 0x03, 0x07, 0x02, 0x01, 0x3f, 0x3f, 0x00, 0x00, 0x3f, 0x3f, 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x13, 0x27, 0x26, 0x26, 0x3e, 0x1c, 0x00, 0x80, 0x80, 0x40, 0x30, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f, 0x01, 0x03, 0x07, 0x02, 0x01, 0x3f, 0x3f, 0x00, 0x00, 0x18, 0x3d, 0x25, 0x25, 0x3f, 0x3e, 0x00, 0x00, 0x1e, 0x3f, 0x21, 0x21, 0x21, 0x00, 0x3f, 0x3f, 0x02, 0x03, 0x03, 0x00, 0x1e, 0x3f, 0x21, 0x21, 0x3f, 0x1e, 0x00, 0xff, 0xff, 0x21, 0x21, 0x3f, 0x1e, 0x00, 0x00, 0x18, 0x3d, 0x25, 0x25, 0x3f, 0x3e, 0x00, 0x1e, 0x3f, 0x21, 0x21, 0x3f, 0x3f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x06, 0x04, 0x04, 0x04, 0x0c, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0c, 0x04, 0x04, 0x04, 0x06, 0x02, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x30,
+    0x70, 0xE0, 0xC0, 0x80, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x80, 0xC0, 0xE0, 0x70, 0x30,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+    0xC0, 0x60, 0x30, 0x10, 0x08, 0x08,
+    0x08, 0x08, 0x08, 0x08, 0x18, 0x10,
+    0x30, 0x60, 0xC0, 0x80, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x80, 0x80, 0x00, 0x00,
+    0x18, 0x38, 0x70, 0xE0, 0xC3, 0x87,
+    0x0E, 0x1C, 0x38, 0x70, 0xE1, 0xC3,
+    0xE7, 0xFE, 0x7C, 0x3E, 0x1F, 0x3E,
+    0x7C, 0xFE, 0xE7, 0xC3, 0xC1, 0xE0,
+    0x70, 0x38, 0x1C, 0x0E, 0x87, 0xC3,
+    0xE0, 0x70, 0x38, 0x10, 0x00, 0x80,
+    0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0xFE, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x7F, 0xC0, 0x80, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x80, 0xC0, 0xFF,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
+    0x02, 0x02, 0x02, 0x02, 0x02, 0xFE,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0xC0, 0xC0, 0x80,
+    0x00, 0x18, 0x38, 0x70, 0xE1, 0xC3,
+    0x87, 0x0E, 0x1C, 0x38, 0xF0, 0xE0,
+    0xE1, 0xF3, 0x7F, 0x3E, 0x1E, 0x0F,
+    0x87, 0xC3, 0x61, 0x30, 0x18, 0x0C,
+    0x06, 0x0C, 0x18, 0x30, 0x61, 0xC3,
+    0x87, 0x0F, 0x1E, 0x3C, 0x7E, 0xF7,
+    0xE3, 0xE1, 0xF0, 0xB8, 0x1C, 0x0E,
+    0x07, 0x83, 0xC1, 0xE0, 0x70, 0x38,
+    0x18, 0x00, 0x80, 0xC0, 0xC0, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x03, 0x02, 0x06, 0x04, 0x04, 0x04,
+    0x04, 0x04, 0x06, 0x06, 0x07, 0x0F,
+    0x19, 0x31, 0x63, 0xC6, 0x8C, 0x18,
+    0x30, 0x60, 0xC0, 0x80, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0xFF, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x01, 0x03, 0x07, 0x0E, 0x9C, 0xF8,
+    0xF0, 0xF1, 0x7B, 0x3F, 0x1E, 0x0F,
+    0x07, 0x03, 0xF9, 0xF8, 0x78, 0xE0,
+    0x00, 0xE0, 0x78, 0xF8, 0xF8, 0x00,
+    0xF8, 0xF8, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x70, 0xF8, 0xC8, 0xC8,
+    0x88, 0x98, 0x11, 0x03, 0x07, 0x0F,
+    0x1F, 0x3E, 0x7F, 0xFB, 0xF1, 0xF0,
+    0xF8, 0x9C, 0x0E, 0x07, 0x03, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xFF, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x81, 0x83, 0x86, 0x8C, 0x8C, 0x87,
+    0x83, 0x80, 0x80, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0xFF, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x80, 0xC0, 0xE0, 0x71,
+    0x3B, 0x1F, 0x0F, 0x8F, 0xDE, 0xFC,
+    0xF8, 0xF0, 0xE0, 0xC0, 0x8F, 0x0F,
+    0x00, 0x07, 0x0E, 0x07, 0x00, 0x0F,
+    0x0F, 0x00, 0x0F, 0x0F, 0x08, 0x08,
+    0x08, 0x08, 0x00, 0x00, 0x04, 0x0C,
+    0x08, 0x09, 0x09, 0x0F, 0x87, 0xC0,
+    0xE0, 0xF0, 0xF8, 0xFC, 0xFE, 0x9F,
+    0x0F, 0x0F, 0x1F, 0x3B, 0x71, 0xE0,
+    0xC0, 0x80, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x1F, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0xF0, 0xF6, 0x16, 0x10,
+    0x16, 0x16, 0x10, 0x16, 0xF6, 0xF0,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x10,
+    0x10, 0x10, 0x10, 0x10, 0x10, 0x1F,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x03, 0x03, 0x01,
+    0x30, 0x38, 0x1C, 0x0E, 0x07, 0x83,
+    0xC1, 0xE0, 0x70, 0x39, 0x1F, 0x0F,
+    0x87, 0xCF, 0xFE, 0x7C, 0x78, 0xF0,
+    0xE1, 0xC3, 0x86, 0x0C, 0x18, 0x30,
+    0x60, 0x30, 0x18, 0x0C, 0x86, 0xC3,
+    0xE1, 0xF0, 0xF8, 0x7C, 0x7E, 0xFF,
+    0xCF, 0x87, 0x0F, 0x1D, 0x38, 0x70,
+    0xE1, 0xC3, 0x87, 0x0E, 0x1C, 0x38,
+    0x30, 0x00, 0x01, 0x03, 0x03, 0x00,
+    0x00, 0x00, 0x00, 0x80, 0x80, 0x80,
+    0x80, 0x80, 0x80, 0x80, 0x80, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x02, 0x03, 0x03, 0x03, 0x03,
+    0x83, 0x83, 0x03, 0x03, 0x03, 0x03,
+    0x03, 0x03, 0x03, 0x03, 0x02, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x80,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x03, 0x03, 0x01, 0x10, 0x38, 0x1C,
+    0x0E, 0x87, 0xC3, 0xE1, 0x70, 0x38,
+    0x1C, 0x0F, 0x87, 0xC7, 0xEF, 0x7F,
+    0x3E, 0x7C, 0xF8, 0x7C, 0x3E, 0x7F,
+    0xFF, 0xC7, 0x83, 0x07, 0x0E, 0x1C,
+    0x38, 0x70, 0xE1, 0xC3, 0x07, 0x0E,
+    0x1C, 0x08, 0x00, 0x01, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+    0xFF, 0x31, 0x31, 0x31, 0x71, 0xF1,
+    0xDB, 0x9F, 0x0E, 0x00, 0x00, 0x98,
+    0xDC, 0xCC, 0x6C, 0x6C, 0xFC, 0xF8,
+    0x00, 0x00, 0xF0, 0xF8, 0x1C, 0x0C,
+    0x0C, 0x18, 0xFF, 0xFF, 0x00, 0x00,
+    0xFC, 0xFC, 0x18, 0x0C, 0x0C, 0x1C,
+    0xF8, 0xF0, 0x00, 0x98, 0xDC, 0xCC,
+    0x6C, 0x6C, 0xFC, 0xF8, 0x00, 0x00,
+    0xF0, 0xF8, 0x1C, 0x0C, 0x0C, 0x18,
+    0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x01, 0x00,
+    0x00, 0x0C, 0x0E, 0x07, 0x03, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x01, 0x03, 0x07,
+    0x0E, 0x0C, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x07, 0x07, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x03, 0x07, 0x06, 0x04,
+    0x00, 0x03, 0x07, 0x06, 0x06, 0x06,
+    0x03, 0x07, 0x04, 0x00, 0x01, 0x03,
+    0x07, 0x06, 0x06, 0x03, 0x07, 0x07,
+    0x00, 0x00, 0x3F, 0x3F, 0x03, 0x06,
+    0x06, 0x07, 0x03, 0x01, 0x00, 0x03,
+    0x07, 0x06, 0x06, 0x06, 0x03, 0x07,
+    0x04, 0x00, 0x01, 0x03, 0x07, 0x06,
+    0x06, 0x03, 0x07, 0x07, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
 };
 
 void render_logo(void) {
@@ -147,6 +333,7 @@ void render_logo(void) {
     oled_write_raw_P(mls_logo, sizeof(mls_logo));
 }
 
+
 void clear_screenlogo(void) {
     // if logo not cleared yet
     if (logo_is_visible) {
@@ -155,13 +342,14 @@ void clear_screenlogo(void) {
                 oled_write_raw_byte(0x0, i * OLED_DISPLAY_WIDTH + j);
             }
         }
-        logo_is_visible = false; // flag logo as cleared
     }
+    logo_is_visible = false; // flag logo as cleared
 }
 
 void init_logo_timer(void) {
     oled_logo_timer = timer_read32();
 };
+
 
 void keyboard_post_init_kb(void) {
     /* This function executes once after most of the keyboard is initialized.
@@ -184,11 +372,11 @@ void keyboard_post_init_kb(void) {
 before then writing the desired text at the desired ln_y position.
 This gets around the problem of having residual text from previous
 writes on that line. */
-void oled_clean_write_ln(uint8_t ln_x, uint8_t ln_y, char wrds[]) {
+void oled_clean_write_ln(uint8_t ln_x, uint8_t ln_y, char wrds[], bool inverted ) {
     oled_set_cursor(0, ln_y);
     oled_write_ln(PSTR(""), false);
     oled_set_cursor(ln_x, ln_y);
-    oled_write_ln(PSTR(wrds), false);
+    oled_write_ln(PSTR(wrds), inverted);
 }
 
 void oled_clean_ln( uint8_t ln_y) {
@@ -201,9 +389,9 @@ void report_pos(void){
     char buf[17];
     if (position_valid){
         snprintf(buf, 17, "Pos: %d", en_turns);
-        oled_clean_write_ln(0, 6, buf);
+        oled_clean_write_ln(0, MSG_LINE_POS, buf, false);
     } else {
-        oled_clean_write_ln(0, 6, "Pos: Now Invalid");
+        oled_clean_write_ln(0, MSG_LINE_POS, "Pos: Now Invalid", false);
     }
 }
 
@@ -212,11 +400,11 @@ void report_stride(void){
     char buf[17];
     switch (active_layer) {
         case _3SPEEDACL:
-            oled_clean_ln(7);
+            oled_clean_ln(MSG_LINE_STRIDE);
             break;
         default:
             snprintf(buf, 17, "Stride: %d", stride);
-            oled_clean_write_ln(0, 7, buf);
+            oled_clean_write_ln(0, MSG_LINE_STRIDE, buf, false);
             break;
     }
 }
@@ -233,6 +421,8 @@ bool oled_task_kb(void) {
     rendered during keyboard_post_init_kb. So it is showing after boot and does not
     need to be rendered again. Instead the logo timer is checked to decide when to
     erase the logo and change the logo_is_visible flag. */
+    // if (!oled_task_user()){return false;}
+
     if (!logo_is_visible) {
         oled_task_user();
         return false;
@@ -247,6 +437,7 @@ bool oled_task_kb(void) {
     }
 }
 
+
 bool oled_task_user(void) {
     /* This function executes at every matrix scan as long
     as the oled_task_kb allows it. That happens when oled_task_kb
@@ -256,13 +447,34 @@ bool oled_task_user(void) {
     /* writing to the oled per the current layer */
     switch (get_highest_layer(layer_state)) {
         case _BASE:
+            /* Sheesh! */
+            if (!new_born){
+                oled_advance_page(false);
+                oled_advance_page(false);
+                oled_advance_page(false);
+                oled_advance_page(false);
+
+            }else{
+                oled_clean_ln(MSG_LINE_ACTION);
+                oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
+                report_position_etc();
+                oled_write_ln(PSTR(""), false);
+            }
             oled_write_ln(PSTR("Keys: Std Mse Wheel"), false);
             oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
-            oled_advance_page(true);
+            oled_write_ln(PSTR("zPress Encoder: Next"), false);
+            oled_write_ln(PSTR(""), false);
             active_layer = _BASE;
+            new_born = false;
             break;
         case _3SPEEDACL:
+            /* Advance_page moves to next oled line while keeping what
+            is already on the current line. The top four lines are not
+            erased from what was already there.*/
+            oled_advance_page(false);
+            oled_advance_page(false);
+            oled_advance_page(false);
+            oled_advance_page(false);
             oled_write_ln(PSTR("Keys: Acl Mse Wheel"), false);
             oled_write_ln(PSTR("3 Wheel Speed Modes"), false);
             oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
@@ -270,31 +482,50 @@ bool oled_task_user(void) {
             active_layer = _3SPEEDACL;
             break;
         case _ALTERNATE2:
+            /* Advance_page moves to next oled line while keeping what
+            is already on the current line. The top four lines are not
+            erased from what was already there.*/
+            oled_advance_page(false);
+            oled_advance_page(false);
+            oled_advance_page(false);
+            oled_advance_page(false);
             oled_write_ln(PSTR("Keys: MLS Mse Wheel"), false);
             oled_write_ln(PSTR("Encoder: Stride"), false);
+            oled_write_ln(PSTR(""), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
-            oled_advance_page(true);
             active_layer = _ALTERNATE2;
             break;
-        case _LED_SETTINGS:
-            oled_write_ln(PSTR("Mode: LED Settings"), false);
+        case _LED_SETUP:
+            oled_write_ln(PSTR("  --  LED Setup  --"), false);
+            oled_write_ln(PSTR(""), false);
             oled_write_ln(PSTR("Encoder: Brightness"), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
-            oled_advance_page(true);
-            oled_advance_page(true);
-            active_layer = _LED_SETTINGS;
+            active_layer = _LED_SETUP;
             break;
         case _STANDBY:
-            oled_write_ln(PSTR("Mode: Standby"), false);
-            oled_write_ln(PSTR("Keys: Nothing"), false);
+            oled_write_ln(PSTR("  -- Standby Mode --"), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR("Keys: Do Nothing"), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR("#1 Key: LED Setup"), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
-            oled_advance_page(true);
             active_layer = _STANDBY;
             break;
         default:
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
             oled_write_ln_P(PSTR("Undefined"), false);
-            oled_advance_page(true);
-            oled_advance_page(true);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
+            oled_write_ln(PSTR(""), false);
             active_layer = _BASE;
     }
     return true;
@@ -332,8 +563,8 @@ void do_countable_wh_u(bool pressed){
         return pgm_read_byte(REP_DELAY_MS + repeat_cnt);
     }
     tap_code(KC_WH_U);  // Initial tap of the key.
-    oled_clean_ln(4);
-    oled_clean_write_ln(4, 5, "+ Hyper In +");
+    oled_clean_ln(0);
+    oled_clean_write_ln(4, 0, "+ Hyper In +", false);
     en_turns++;
     report_pos();
     // Schedule key to repeat.
@@ -358,8 +589,8 @@ void do_countable_wh_d(bool pressed){
         return pgm_read_byte(REP_DELAY_MS + repeat_cnt);
     }
     tap_code(KC_WH_D);  // Initial tap of the key.
-    oled_clean_ln(4);
-    oled_clean_write_ln(4, 5, "- Hyper Out -");
+    oled_clean_ln(0);
+    oled_clean_write_ln(4, 0, "- Hyper Out -", false);
     en_turns--;
     report_pos();
     // Schedule key to repeat.
@@ -371,7 +602,7 @@ void do_enc_stride_inc(bool pressed){
     /* Encoder turn increases the stride value by 1 */
     if (pressed) {
         stride++;
-        oled_clean_write_ln(1, 5, "|+|  Stride Chg  |+|");
+        oled_clean_write_ln(1, MSG_LINE_ACTION, "| +  Stride Chg  + |", false);
         }
 }
 
@@ -380,7 +611,9 @@ void do_enc_stride_dec(bool pressed){
     if (pressed) {
         if (stride > 1) {
             stride--;
-            oled_clean_write_ln(1, 5, "|-|  Stride Chg  |-|");
+            oled_clean_write_ln(1, MSG_LINE_ACTION, "| -  Stride Chg  - |", false);
+        }else{
+            oled_clean_write_ln(1, MSG_LINE_ACTION, "|  Positive Only!  |", true);
         }
     }
 }
@@ -390,8 +623,7 @@ void do_turn_0(bool pressed){
     if (pressed) {
         en_turns = 0;
         position_valid = true;
-        oled_clean_write_ln(3, 4, "000  Zero Pos 000");
-        oled_clean_ln(5);
+        oled_clean_write_ln(3, 0, "000  Zero Pos 000", false);
     }
 }
 
@@ -399,17 +631,17 @@ void do_stride_1(bool pressed){
     /* Resets the stride value to 1*/
     if (pressed) {
         stride = 1;
-        oled_clean_write_ln(1, 5, "|1| Stride Reset |1|");
+        oled_clean_write_ln(1, 0, "| 1 Stride Reset 1 |", false);
     }
 }
 
 void do_msg_stby(bool pressed){
-    /* oled display the standby message, used when a key is pressed
-    while in standby mode to remind user they are in standby mode.
-    Otherwise they might wonder why nothing happens. */
+    /* flash the oled display, used when a key is pressed
+    while in standby mode to remind user they are in standby mode.*/
     if (pressed) {
-        oled_clean_write_ln(1, 4, "!@# Standby Mode !@#");
-        oled_clean_ln(5);
+        oled_invert(true);
+    } else {
+        oled_invert(false);
     }
 }
 
@@ -421,12 +653,12 @@ void do_spd_1_u(bool pressed) {
         // when pressed
         tap_code(MS_ACL0);
         register_code(KC_WH_U);
-        oled_clean_write_ln(2, 5, "+ Speed 1 In +");
+        oled_clean_write_ln(3, 0, "+ Speed 1 In +", false);
         position_valid = false;
     } else {
         // when released
         unregister_code(KC_WH_U);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -438,12 +670,12 @@ count of the number sent, so the en_turns is not updated.*/
         // when pressed
         tap_code(MS_ACL0);
         register_code(KC_WH_D);
-        oled_clean_write_ln(3, 5, "- Speed 1 Out -");
+        oled_clean_write_ln(3, 0, "- Speed 1 Out -", false);
         position_valid = false;
     } else {
         // when released
         unregister_code(KC_WH_D);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -455,12 +687,12 @@ count of the number sent, so the en_turns is not updated.*/
         // when pressed
         tap_code(MS_ACL1);
         register_code(KC_WH_U);
-        oled_clean_write_ln(3, 5, "++ Speed 2 In ++");
+        oled_clean_write_ln(3, 0, "++ Speed 2 In ++", false);
         position_valid = false;
     } else {
         // when released
         unregister_code(KC_WH_U);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -471,11 +703,11 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL1);
         register_code(KC_WH_D);
-        oled_clean_write_ln(2, 5, "-- Speed 2 Out --");
+        oled_clean_write_ln(2, 0, "-- Speed 2 Out --", false);
         position_valid = false;
     } else {
         unregister_code(KC_WH_D);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -486,11 +718,11 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL2);
         register_code(KC_WH_U);
-        oled_clean_write_ln(1, 5, "+++ Speed 3 In +++");
+        oled_clean_write_ln(1, 0, "+++ Speed 3 In +++", false);
         position_valid = false;
     } else {
         unregister_code(KC_WH_U);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -501,11 +733,11 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL2);
         register_code(KC_WH_D);
-        oled_clean_write_ln(1, 5, "--- Speed 3 Out ---");
+        oled_clean_write_ln(1, 0, "--- Speed 3 Out ---", false);
         position_valid = false;
     } else {
         unregister_code(KC_WH_D);
-        oled_clean_ln(5);
+        oled_clean_ln(0);
     }
 }
 
@@ -519,8 +751,8 @@ Note: an encoder event comes as a press/release pair */
                 tap_code(KC_WH_U);
                 en_turns++;
             }
-        oled_clean_ln(4);
-        oled_clean_write_ln(2, 5, "+++ In Scroll +++");
+        oled_clean_ln(0);
+        oled_clean_write_ln(2, 0, "+++ In Scroll +++", false);
     }
 }
 
@@ -534,8 +766,8 @@ Note: an encoder event comes as a press/release pair */
                 tap_code(KC_WH_D);
                 en_turns--;
             }
-        oled_clean_ln(4);
-        oled_clean_write_ln(2, 5, "--- Out Scroll ---");
+        oled_clean_ln(0);
+        oled_clean_write_ln(1, 0, "--- Out Scroll ---", false);
     }
 }
 
@@ -551,8 +783,8 @@ The en_turns value is updated for each wheel up sent.*/
             tap_code(KC_WH_U);
             en_turns++;
         }
-        oled_clean_ln(4);
-        oled_clean_write_ln(0, 5, "+++ MLS In Scroll +++");
+        oled_clean_ln(MSG_LINE_ACTION);
+        oled_clean_write_ln(1, MSG_LINE_ACTION, "++ MLS In Scroll ++", false);
     }
 }
 
@@ -568,8 +800,8 @@ Note: an encoder event comes as a press/release pair */
             tap_code(KC_WH_D);
             en_turns--;
         }
-        oled_clean_ln(4);
-        oled_clean_write_ln(0, 5, "--- MLS Out Scroll ---");
+        oled_clean_ln(MSG_LINE_ACTION);
+        oled_clean_write_ln(1, MSG_LINE_ACTION, "-- MLS Out Scroll --", false);
     }
 }
 
@@ -587,23 +819,43 @@ required to return to 0 position.*/
                 en_turns--;
             }
         }
-        oled_clean_ln(4);
-        oled_clean_write_ln(1, 5, "=> Scrolled To 0 <=");
+        oled_clean_ln(0);
+        oled_clean_write_ln(1, 0, "=> Scrolled To 0 <=", false);
         } else {
-            oled_clean_ln(4);
-            oled_clean_write_ln(1, 5, "!! Not Applicable !!");
+            oled_clean_ln(MSG_LINE_ACTION);
+            oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", true);
+        }
+    } else {
+        if (!position_valid){
+            oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", false);
         }
     }
 }
 
-void do_msg_ready(bool pressed){
+
+
+void do_exit_standby(bool pressed){
 /* oled display a ready message*/
     if (pressed) {
-        oled_clean_ln(4);
-        oled_clean_write_ln(3, 5, "---  Ready  ---");
-    } else {
-        layer_move(0);
+        layer_move(LYR_CYCLE_START);
+        oled_clean_ln(MSG_LINE_ACTION);
+        oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
+        report_position_etc();
     }
+
+}
+
+
+void do_cycle_rad_lyr(bool pressed){
+    if (!pressed){return;}
+    uint8_t current_layer = get_highest_layer(layer_state);
+    if (current_layer > LYR_CYCLE_END || current_layer < LYR_CYCLE_START){return;}
+    uint8_t next_layer = current_layer +1;
+    if (next_layer > LYR_CYCLE_END){
+        next_layer = LYR_CYCLE_START;
+    }
+    layer_move(next_layer);
+    return;
 }
 
 
@@ -740,9 +992,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             do_goto_0(record->event.pressed);
             break;
 
-        case MSG_READY:
+        case EXIT_STBY:
             /* oled display a ready message*/
-            do_msg_ready(record->event.pressed);
+            do_exit_standby(record->event.pressed);
+            return false;
+            break;
+
+        case CYCLE_RAD_LYRS:
+            /* Cycle to next layer in the rad use layers */
+            do_cycle_rad_lyr(record->event.pressed);
             return false;
             break;
 
@@ -760,8 +1018,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //     if (record->event.pressed) {
         //         register_code(KC_WH_U);
         //         position_valid = false;
-        //         oled_clean_ln(4);
-        //         oled_clean_write_ln(4, 5, "+ Scroll In +");
+        //         oled_clean_ln(0);
+        //         oled_clean_write_ln(0, 5, "+ Scroll In +");
         //     } else {
         //         unregister_code(KC_WH_U);
         //         oled_clean_ln(5);
@@ -773,7 +1031,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         // count of the number sent, so the en_turns is not updated.*/
         //     if (record->event.pressed) {
         //         register_code(KC_WH_D);
-        //         oled_clean_ln(4);
+        //         oled_clean_ln(0);
         //         oled_clean_write_ln(3, 5, "- Scroll Out -");
         //         position_valid = false;
         //     } else {
