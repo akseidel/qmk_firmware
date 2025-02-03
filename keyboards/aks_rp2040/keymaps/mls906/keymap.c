@@ -841,27 +841,42 @@ required to return to previous position p.*/
     if (pressed) {
         if (position_valid){
             int16_t delta_turns = prev_pos - en_turns;
+            int8_t dir = 0;
             prev_pos = en_turns;
+            oled_clean_ln(MSG_LINE_ACTION);
             while (delta_turns != 0){
                 if (delta_turns < 0) {
                     tap_code(KC_WH_D);
                     delta_turns++;
                     en_turns--;
-                } else if (delta_turns > 0) {\
+                    dir = -1;
+                } else if (delta_turns > 0) {
                     tap_code(KC_WH_U);
                     delta_turns--;
                     en_turns++;
+                    dir = 1;
                 }
             }
-            oled_clean_ln(MSG_LINE_ACTION);
-            oled_clean_write_ln(0, MSG_LINE_ACTION, "=> Return Scrolled <=", false);
+            switch(dir){
+                case 0:
+                    // msg template    (0, MSG_LINE_ACTION,"xxxxxxxxxxxxxxxxxxxx", false);
+                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~  A Boundary Set  ~", false);
+                    break;
+                case 1:
+                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~   Boundary In    ~", false);
+                    break;
+                case -1:
+                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~   Boundary Out   ~", false);
+                    break;
+                default:
+                    break;
+            }
             } else {
-                oled_clean_ln(MSG_LINE_ACTION);
-                oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", true);
+                oled_clean_write_ln(1, MSG_LINE_ACTION, "!! Not Applicable !!", true);
             }
     } else {
         if (!position_valid){
-            oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", false);
+            oled_clean_write_ln(1, MSG_LINE_ACTION, "!! Not Applicable !!", false);
         }
     }
 }
@@ -1050,53 +1065,3 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     return true;
 };
 
-
-// case STD_WH_U:
-        // /* Standard QMK mouse wheel up. As of this time, we cannot keep
-        // count of the number sent, so the en_turns is not updated.*/
-        //     if (record->event.pressed) {
-        //         register_code(KC_WH_U);
-        //         position_valid = false;
-        //         oled_clean_ln(0);
-        //         oled_clean_write_ln(0, 5, "+ Scroll In +");
-        //     } else {
-        //         unregister_code(KC_WH_U);
-        //         oled_clean_ln(5);
-        //     }
-        //     break;
-
-        // case STD_WH_D:
-        // /* Standard QMK mouse wheel dn. As of this time, we cannot keep
-        // count of the number sent, so the en_turns is not updated.*/
-        //     if (record->event.pressed) {
-        //         register_code(KC_WH_D);
-        //         oled_clean_ln(0);
-        //         oled_clean_write_ln(3, 5, "- Scroll Out -");
-        //         position_valid = false;
-        //     } else {
-        //         unregister_code(KC_WH_D);
-        //         oled_clean_ln(5);
-        //     }
-        //     break;
-
-  // case LAY_F:
-        // /* not implemented, intended to be key press jumps to next layer*/
-        //     if (record->event.pressed) {
-        //         // when pressed
-
-        //     } else {
-        //         // layer_move(0);
-        //     }
-        //     return false;
-        //     break;
-
-        // case LAY_B:
-        // /* not implemented, intended to be key press jumps to previous layer*/
-        //     if (record->event.pressed) {
-        //         // when pressed
-
-        //     } else {
-        //         // layer_move(0);
-        //     }
-        //     return false;
-        //     break;
