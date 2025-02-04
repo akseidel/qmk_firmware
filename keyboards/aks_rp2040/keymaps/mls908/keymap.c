@@ -30,18 +30,18 @@ enum layer_names { _BASE,
 
 /* Every reference name must be first defined in enum before it shows up anywhere in the code. */
 enum custom_keycodes {
-    ENC_U = SAFE_RANGE,   // Encoder as mouse wheel up
-    ENC_D,               // Encoder as mouse wheel dn
-    TURN_0,               // Zero the encoder counts
-    ENC_STRIDE_INC,              // Stride increase
-    ENC_STRIDE_DEC,              // Stride decrease
-    STRIDE_1,              // Set stride to one
+    ENC_U = SAFE_RANGE, // Encoder as mouse wheel up
+    ENC_D,              // Encoder as mouse wheel dn
+    TURN_0,             // Zero the encoder counts
+    ENC_STRIDE_INC,     // Stride increase
+    ENC_STRIDE_DEC,     // Stride decrease
+    STRIDE_1,           // Set stride to one
     GOTO_0,             // Save position P, then return to position 0
     GOTO_P,             // Return to position P
     MLS_WHLU,           // MLS control up
     MLS_WHLD,           // MLS control dn
     MSG_STBY,           // Show message standby
-    EXIT_STBY,       // Special requirement when exiting standby
+    EXIT_STBY,          // Special requirement when exiting standby
     SPD_1_U,            // Wheel up at accelerated speed 1
     SPD_1_D,            // Wheel down at accelerated speed 1
     SPD_2_U,            // Wheel up at accelerated speed 2
@@ -52,18 +52,18 @@ enum custom_keycodes {
     LAY_B,              // Switch to previous layer (not used at this time)
     STD_WH_U,           // Standard QMK mouse wheel up, no counting
     STD_WH_D,           // Standard QMK mouse wheel dn, no counting
-    EXP_WH_U,            // Exponential QMK mouse wheel up, with counting
+    EXP_WH_U,           // Exponential QMK mouse wheel up, with counting
     EXP_WH_D,           // Exponential QMK mouse wheel dn, with counting
-    CYCLE_RAD_LYRS,      // Cycle only through rad layers
-    LED_LYR,           // Set layer to LED_SETUP
-    LED_TOG,           // LED animation toggle
-    LED_NXT,             // Next LED animation
-    LED_B_UP,           // LED Intensity Up
-    LED_B_DN,           // LED Intensity Dn
-    LED_HUE_UP,
-    LED_HUE_DN,
-    LED_SPD_UP,
-    LED_SPD_DN
+    CYCLE_RAD_LYRS,     // Cycle only through rad layers
+    LED_LYR,            // Set layer to LED_SETUP
+    LED_TOG,            // LED animation toggle
+    LED_NXT,            // Next LED animation
+    LED_I_UP,           // LED Intensity Up
+    LED_I_DN,           // LED Intensity Dn
+    LED_HUE_UP,         // LED HUE value (color) up
+    LED_HUE_DN,         // LED HUE value (color) dn
+    LED_SPD_UP,         // LED animation speed up
+    LED_SPD_DN          // LED animation speed dn
 
 };
 
@@ -71,31 +71,31 @@ enum custom_keycodes {
 /* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* One shot strides and also standard out of box mouse wheel action */
-    [_BASE]        = LAYOUT(CYCLE_RAD_LYRS,                       // encoder press goto _3SPEEDACL
+    [_BASE]        = LAYOUT(                   CYCLE_RAD_LYRS,      // encoder press goto _3SPEEDACL
                             TURN_0,  GOTO_P,   KC_NO,               // counter zero
-                            GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
+                            GOTO_0,   KC_NO, STRIDE_1,              // goto postion 0, kc_no, set stride to 1
                             ENC_U, EXP_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
                             ENC_D, EXP_WH_D, ENC_STRIDE_DEC         // 1 shot d click stride x,reg. wheel,inc stride
-                             ),
+                            ),
     /* QMK accelerated mouse wheel action
     The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges.
     Speed is currently set at compile time. Position counter n/a. */
-    [_3SPEEDACL]    = LAYOUT(CYCLE_RAD_LYRS,                     // encoder press goto _ALTERNATE2
-                            TURN_0,  GOTO_P,   KC_NO,               // counter zero
-                            GOTO_0,  KC_NO,   KC_NO,               // goto postion 0
-                            SPD_1_U, SPD_2_U, SPD_3_U,             // up @ spd 1, up @ spd 2, up @ spd 3
-                            SPD_1_D, SPD_2_D, SPD_3_D              // dn @ spd 1, dn @ spd 2, dn @ spd 3
-                             ),
+    [_3SPEEDACL]    = LAYOUT(                  CYCLE_RAD_LYRS,      // encoder press goto _ALTERNATE2
+                            TURN_0,  GOTO_P,   KC_NO,               // counter zero, set position
+                            GOTO_0,  KC_NO,   KC_NO,                // goto postion 0
+                            SPD_1_U, SPD_2_U, SPD_3_U,              // up @ spd 1, up @ spd 2, up @ spd 3
+                            SPD_1_D, SPD_2_D, SPD_3_D               // dn @ spd 1, dn @ spd 2, dn @ spd 3
+                            ),
     /* MLS mouse wheel speed control. The encoder sets stride
     while keys are used for up and down at stride distance. */
-    [_ALTERNATE2]    = LAYOUT(CYCLE_RAD_LYRS,                        // encoder press goto _LED_SETUP
-                            TURN_0,   GOTO_P, KC_NO,                // counter 0, kc_no, KC_NO
-                            GOTO_0,   KC_NO, STRIDE_1,             // goto postion 0, kc_no, set stride to 1
-                            MLS_WHLU, MLS_WHLU, MLS_WHLU,          // all keys do up
-                            MLS_WHLD, MLS_WHLD, MLS_WHLD           // all keys do dn
+    [_ALTERNATE2]    = LAYOUT(                   CYCLE_RAD_LYRS,     // encoder press goto _LED_SETUP
+                            TURN_0,   GOTO_P, KC_NO,                // counter 0, set position, KC_NO
+                            GOTO_0,   KC_NO, STRIDE_1,              // goto postion 0, kc_no, set stride to 1
+                            MLS_WHLU, MLS_WHLU, MLS_WHLU,           // all keys do up
+                            MLS_WHLD, MLS_WHLD, MLS_WHLD            // all keys do dn
                              ),
 
-    [_STANDBY]      = LAYOUT(EXIT_STBY,                            // encoder press goto _BASE
+    [_STANDBY]      = LAYOUT(                    EXIT_STBY,         // encoder press goto _BASE
                              TO(_LED_SETUP), MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
@@ -103,27 +103,26 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                              ),
 
     /* LED animation setting layer */
-    [_LED_SETUP] = LAYOUT(TO(_STANDBY),                             // encoder press goto _STANDBY
-                             LED_NXT, KC_NO, LED_TOG,              // Next RGB animation, kc_no, Animation on/off
-                             KC_NO, KC_NO, KC_NO,
-                             LED_B_UP, LED_HUE_UP, LED_SPD_UP,            // intensity up, color hue up, amim speed up
-                             LED_B_DN, LED_HUE_DN, LED_SPD_DN             // intensity dn, color hue dn, amim speed dn
+    [_LED_SETUP]    = LAYOUT(                   TO(_STANDBY),       // encoder press goto _STANDBY
+                             TO(_STANDBY), KC_NO, KC_NO,            // back to _STANDBY, kc_no, kc_no
+                             LED_NXT, KC_NO, LED_TOG,               // Next RGB animation, kc_no, Animation on/off
+                             LED_I_UP, LED_HUE_UP, LED_SPD_UP,      // intensity up, color hue up, amim speed up
+                             LED_I_DN, LED_HUE_DN, LED_SPD_DN       // intensity dn, color hue dn, amim speed dn
                              ),
 
 };
 
-
-static int16_t en_turns = 0;    /* being used to record number of encoder turns */
-static int16_t prev_pos = 0;       /* being used to record number of encoder turns  back to position p */
-static int16_t stride = 1;      /* stride is a distance (number of encoder turns) concept*/
-static bool position_valid = true; /* flag indicating the position counter is valid */
-static int16_t active_layer = 0;  /* manually keeping track of current layer */
-static bool new_born = true;    /* in a fresh state */
+static int16_t en_turns = 0;        /* being used to record number of encoder turns */
+static int16_t prev_pos = 0;        /* being used to record number of encoder turns back to position p */
+static int16_t stride = 1;          /* stride is a distance (number of encoder turns) concept*/
+static bool position_valid = true;  /* flag indicating the position counter is valid */
+static int16_t active_layer = 0;    /* manually keeping track of current layer */
+static bool new_born = true;        /* in a fresh state */
 
 /* These values are used in the scheme to cycle through layers but skip some layers */
 #define LYR_CYCLE_START 0
 #define LYR_CYCLE_END 3
-
+/* Values used to name oled page (line) number */
 #define MSG_LINE_ACTION 0
 #define MSG_LINE_POS 1
 #define MSG_LINE_STRIDE 2
@@ -136,27 +135,25 @@ static bool new_born = true;    /* in a fresh state */
 /*  This sets what the encoder turning does at each layer.
     There has to be an enum setting for each defined layer and action.
     Otherwise there will be a compile error.
-
-    Keep in mind the transparency encoding applies.
 */
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
     [_3SPEEDACL]    = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
     [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)}, // custom function for encoder turn being change strive value
-    [_LED_SETUP] = {ENCODER_CCW_CW(LED_B_DN, LED_B_UP)}, // LED Intensity
+    [_LED_SETUP] = {ENCODER_CCW_CW(LED_I_DN, LED_I_UP)}, // LED Intensity
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
 };
 #endif
 
 #ifdef OLED_ENABLE
 
-// trying to render the logo only during startup
+// logo render time during startup
 #    ifndef SHOW_LOGO
 #        define SHOW_LOGO 2000
 #    endif
 
 // variables used for showing logo only at startup
-static bool     logo_is_visible      = true;
+static bool     logo_is_visible = true;
 static uint32_t oled_logo_timer = 0;
 
 /* constant that is the data for the logo graphic */
@@ -345,9 +342,8 @@ void render_logo(void) {
     oled_write_raw_P(mls_logo, sizeof(mls_logo));
 }
 
-
 void clear_screenlogo(void) {
-    // if logo not cleared yet
+    /* clear logo is logo is still visible */
     if (logo_is_visible) {
         for (uint8_t i = 0; i < OLED_DISPLAY_HEIGHT; ++i) {
             for (uint8_t j = 0; j < OLED_DISPLAY_WIDTH; ++j) {
@@ -355,17 +351,17 @@ void clear_screenlogo(void) {
             }
         }
     }
-    logo_is_visible = false; // flag logo as cleared
+    logo_is_visible = false;
 }
 
 void init_logo_timer(void) {
     oled_logo_timer = timer_read32();
 };
 
-
 void keyboard_post_init_kb(void) {
     /* This function executes once after most of the keyboard is initialized.
-    The logo gets rendered and its timer to be visible is set. */
+    The logo gets rendered and its timer to be visible is set. The logo is
+    visible flag is already set as default true.*/
     render_logo();
     init_logo_timer();
 }
@@ -391,13 +387,13 @@ void oled_clean_write_ln(uint8_t ln_x, uint8_t ln_y, char wrds[], bool inverted 
     oled_write_ln(PSTR(wrds), inverted);
 }
 
+/* clears an oled line (page) by line number */
 void oled_clean_ln( uint8_t ln_y) {
     oled_set_cursor(0, ln_y);
     oled_write_ln(PSTR(""), false);
 }
 
-
-void report_pos(void){
+void rpt_pos(void){
     /* oled display position value */
     char buf[20];
     if (position_valid){
@@ -408,7 +404,7 @@ void report_pos(void){
     }
 }
 
-void report_stride(void){
+void rpt_stride(void){
     /* oled display stride value*/
     char buf[20];
     switch (active_layer) {
@@ -422,13 +418,14 @@ void report_stride(void){
     }
 }
 
-void report_position_etc(void){
+void rpt_position_etc(void){
     /* report radiology use function status like pos and stride */
-    report_pos();
-    report_stride();
+    rpt_pos();
+    rpt_stride();
 }
 
 void rpt_led_status(void){
+        /* reports all the current LED setup information to the oled */
         char buf[20];
         uint8_t anim_mode = rgb_matrix_get_mode();
          // msg template    (0, MSG_LINE_ACTION,"xxxxxxxxxxxxxxxxxxxx", false);
@@ -455,8 +452,6 @@ void rpt_led_status(void){
 }
 
 
-
-
 bool oled_task_kb(void) {
     /* This function executes at every matrix scan. It provides the opportunity
     to not call the oled_task_user that executes the oled updates. The logo_is_visible
@@ -464,7 +459,6 @@ bool oled_task_kb(void) {
     rendered during keyboard_post_init_kb. So it is showing after boot and does not
     need to be rendered again. Instead the logo timer is checked to decide when to
     erase the logo and change the logo_is_visible flag. */
-    // if (!oled_task_user()){return false;}
 
     if (!logo_is_visible) {
         oled_task_user();
@@ -488,6 +482,7 @@ bool oled_task_user(void) {
     depending on what oled_task_kb does. */
 
     /* writing to the oled per the current layer */
+    // msg template    "xxxxxxxxxxxxxxxxxxxx"
     switch (get_highest_layer(layer_state)) {
         case _BASE:
             /* Sheesh! */
@@ -499,12 +494,12 @@ bool oled_task_user(void) {
 
             }else{
                 oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
-                report_position_etc();
+                rpt_position_etc();
                 oled_write_ln(PSTR(""), false);
             }
-            oled_write_ln(PSTR("Keys: Std Mse Wheel"), false);
+            oled_write_ln(PSTR(" -- Std Mse Wheel --"), false);
             oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
-            oled_write_ln(PSTR("zPress Encoder: Next"), false);
+            oled_write_ln(PSTR("Press Encoder: Next"), false);
             oled_write_ln(PSTR(""), false);
             active_layer = _BASE;
             new_born = false;
@@ -517,7 +512,7 @@ bool oled_task_user(void) {
             oled_advance_page(false);
             oled_advance_page(false);
             oled_advance_page(false);
-            oled_write_ln(PSTR("Keys: Acl Mse Wheel"), false);
+            oled_write_ln(PSTR(" -- Acl Mse Wheel --"), false);
             oled_write_ln(PSTR("3 Wheel Speed Modes"), false);
             oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
@@ -531,7 +526,7 @@ bool oled_task_user(void) {
             oled_advance_page(false);
             oled_advance_page(false);
             oled_advance_page(false);
-            oled_write_ln(PSTR("Keys: MLS Mse Wheel"), false);
+            oled_write_ln(PSTR(" -- MLS Mse Wheel --"), false);
             oled_write_ln(PSTR("Encoder: Stride"), false);
             oled_write_ln(PSTR(""), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
@@ -562,13 +557,10 @@ bool oled_task_user(void) {
         default:
             break;
     }
-
     return true;
 }
 
-
-
-#endif
+#endif  /* for OLED_ENABLE */
 
 /* These values are used for the repeating scroll key method that provides
 a point where the scroll can be counted. The technique is Borrowed from
@@ -593,7 +585,7 @@ void do_countable_wh_u(bool pressed){
     uint32_t thiskey_rep_callback(uint32_t trigger_time, void* cb_arg) {
         tap_code(KC_WH_U);
         en_turns++;
-        report_pos();
+        rpt_pos();
         if (repeat_cnt < sizeof(REP_DELAY_MS) - 1) {
             ++repeat_cnt;
         }
@@ -602,7 +594,7 @@ void do_countable_wh_u(bool pressed){
     tap_code(KC_WH_U);  // Initial tap of the key.
     oled_clean_write_ln(4, MSG_LINE_ACTION, "+ Hyper In +", false);
     en_turns++;
-    report_pos();
+    rpt_pos();
     // Schedule key to repeat.
     rep_token = defer_exec(REP_DELAY_MS[0], thiskey_rep_callback, NULL);
     repeat_cnt = 0;
@@ -618,7 +610,7 @@ void do_countable_wh_d(bool pressed){
     uint32_t thiskey_rep_callback(uint32_t trigger_time, void* cb_arg) {
         tap_code(KC_WH_D);
         en_turns--;
-        report_pos();
+        rpt_pos();
         if (repeat_cnt < sizeof(REP_DELAY_MS) - 1) {
             ++repeat_cnt;
         }
@@ -627,7 +619,7 @@ void do_countable_wh_d(bool pressed){
     tap_code(KC_WH_D);  // Initial tap of the key.
     oled_clean_write_ln(4, MSG_LINE_ACTION, "- Hyper Out -", false);
     en_turns--;
-    report_pos();
+    rpt_pos();
     // Schedule key to repeat.
     rep_token = defer_exec(REP_DELAY_MS[0], thiskey_rep_callback, NULL);
     repeat_cnt = 0;
@@ -908,17 +900,15 @@ required to return to previous position p.*/
     }
 }
 
-
 void do_exit_standby(bool pressed){
 /* oled display a ready message*/
     if (pressed) {
         layer_move(LYR_CYCLE_START);
         oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
-        report_position_etc();
+        rpt_position_etc();
     }
 
 }
-
 
 void do_cycle_rad_lyr(bool pressed){
     if (!pressed){return;}
@@ -932,7 +922,6 @@ void do_cycle_rad_lyr(bool pressed){
     layer_move(next_layer);
     return;
 }
-
 
 void do_led_tog(bool pressed){
     if (pressed) {
@@ -952,14 +941,14 @@ void do_led_nxt(bool pressed){
     rpt_led_status();
 }
 
-void do_led_b_up(bool pressed){
+void do_led_i_up(bool pressed){
     if (pressed) {
         rgb_matrix_increase_val();
     }
     rpt_led_status();
 }
 
-void do_led_b_dn(bool pressed){
+void do_led_i_dn(bool pressed){
     if (pressed) {
         rgb_matrix_decrease_val();
     }
@@ -996,15 +985,14 @@ void do_led_spd_dn(bool pressed){
 
 layer_state_t layer_state_set_user(layer_state_t state) {
     switch (get_highest_layer(state)) {
-    case _LED_SETUP:
-        rpt_led_status();
-        break;
-    default:
-        break;
+        case _LED_SETUP:
+            rpt_led_status();
+            break;
+        default:
+            break;
     }
   return state;
 }
-
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     /*
@@ -1023,38 +1011,38 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             /* Hyper standard QMK mouse wheel up, keeping
             count of the number sent, so the en_turns is not updated.*/
             do_countable_wh_u(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case EXP_WH_D:
             /* Hyper standard QMK mouse wheel up, keeping
             count of the number sent, so the en_turns is not updated.*/
             do_countable_wh_d(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case ENC_STRIDE_INC:
             /* Encoder turn increases the stride value by 1 */
             do_enc_stride_inc(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case ENC_STRIDE_DEC:
             /* Encoder turn decreases the stride value by 1 */
             do_enc_stride_dec(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case TURN_0:
           /* Resets the encoder turns counter to 0 */
             do_turn_0(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case STRIDE_1:
            /* Resets the stride value to 1*/
             do_stride_1(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case MSG_STBY:
@@ -1069,7 +1057,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 1, send continuous mouse wheel up events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_1_u(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case SPD_1_D:
@@ -1077,7 +1065,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 1, send continuous mouse wheel dn events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_1_d(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case SPD_2_U:
@@ -1085,7 +1073,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 2, send continuous mouse wheel up events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_2_u(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case SPD_2_D:
@@ -1093,7 +1081,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 2, send continuous mouse wheel dn events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_2_d(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case SPD_3_U:
@@ -1101,7 +1089,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 3, send continuous mouse wheel up events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_3_u(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case SPD_3_D:
@@ -1109,7 +1097,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             speed 3, send continuous mouse wheel dn events. As of this time, we cannot keep
             count of the number sent, so the en_turns is not updated.*/
             do_spd_3_d(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case ENC_U:
@@ -1118,7 +1106,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             The en_turns value is updated for each wheel up sent.
             Note: an encoder event comes as a press/release pair */
             do_enc_u(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case ENC_D:
@@ -1127,7 +1115,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             The en_turns value is updated for each wheel dn sent.
             Note: an encoder event comes as a press/release pair */
             do_enc_d(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case MLS_WHLU:
@@ -1136,7 +1124,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             Used for keypresses in MSL mode.
             The en_turns value is updated for each wheel up sent.*/
             do_mls_whlu(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case MLS_WHLD:
@@ -1146,14 +1134,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             The en_turns value is updated for each wheel dn sent.
             Note: an encoder event comes as a press/release pair */
             do_mls_whld(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case GOTO_0:
             /* Sends mouse wheel up or mouse wheel dn commands the number of times
             required to return to 0 position.*/
             do_goto_0(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case EXIT_STBY:
@@ -1172,45 +1160,52 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             /* Sends mouse wheel up or mouse wheel dn commands the number of times
             required to return to position p.*/
             do_goto_p(record->event.pressed);
-            report_position_etc();  // update oled display for position etc.
+            rpt_position_etc();  // update oled display for position etc.
             break;
 
         case LED_TOG:
+            /* Toggles LED animation */
             do_led_tog(record->event.pressed);
             break;
 
         case LED_NXT:
+            /* Set animation to next animation */
             do_led_nxt(record->event.pressed);
             break;
 
-        case LED_B_UP:
-            do_led_b_up(record->event.pressed);
+        case LED_I_UP:
+            /* LED intensity up */
+            do_led_i_up(record->event.pressed);
             break;
 
-        case LED_B_DN:
-            do_led_b_dn(record->event.pressed);
+        case LED_I_DN:
+            /* LED intensity dn */
+            do_led_i_dn(record->event.pressed);
             break;
 
         case LED_HUE_UP:
+            /* LED hue number up */
             do_led_hue_up(record->event.pressed);
             break;
 
         case LED_HUE_DN:
+            /* LED hue number up */
             do_led_hue_dn(record->event.pressed);
             break;
 
         case LED_SPD_UP:
+            /* Animation speed up */
             do_led_spd_up(record->event.pressed);
             break;
 
         case LED_SPD_DN:
+            /* Animation speed dn */
             do_led_spd_dn(record->event.pressed);
             break;
 
         default:
             break;
     }
-
     return true;
 };
 

@@ -53,14 +53,14 @@
             "jellybean_raindrops": false,
             "hue_breathing": false,
             "hue_pendulum": false,
-            "hue_wave": true,
+            "hue_wave": false,
             "pixel_rain": false,
             "pixel_flow": false,
             "pixel_fractal": false,
             "typing_heatmap": false,
             "digital_rain": false,
+            "solid_color": true,
             "solid_reactive_simple": true,
-            "solid_reactive": false,
             "solid_reactive_wide": false,
             "solid_reactive_multiwide": false,
             "solid_reactive_cross": false,
@@ -74,7 +74,7 @@
             "starlight": false,
             "starlight_dual_hue":false,
             "starlight_dual_sat": false,
-            "riverflow": true
+            "riverflow": false
         },
         "default": {
             "animation": "solid_reactive_simple",
