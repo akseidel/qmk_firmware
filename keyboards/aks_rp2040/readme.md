@@ -11,12 +11,12 @@ A RP2040-powered Macropad with a 3x4 layout.
 Make example for this board (after setting up your build environment):
 
 ```sh
-qmk compile -kb aks_rp2040 -km mls907
+qmk compile -kb aks_rp2040 -km mls910
 
 
 once the macropad is in flash mode (double click the side button) this will flash the macropad:
 
-qmk flash -kb aks_rp2040 -km mls001
+qmk flash -kb aks_rp2040 -km mls910
 
 Note that flash will recompile if changes were made.
 
