@@ -23,7 +23,8 @@
     },
     "encoder": {
         "rotary": [
-            {"pin_a": "GP18", "pin_b": "GP17"}
+            {"pin_a": "GP18", "pin_b": "GP17"},
+            {"pin_a": "GP20", "pin_b": "GP21"}
         ]
     },
     "rgb_matrix": {

@@ -39,6 +39,7 @@
 #define SPI_MOSI_PIN GP27
 #define SPI_MISO_PIN GP28
 
+
 /* Double tap the side button to enter bootloader */
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET
 #define RP2040_BOOTLOADER_DOUBLE_TAP_RESET_LED GP13

@@ -15,12 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include QMK_KEYBOARD_H
+#include <time.h>
+#include <errno.h>
 // #include "print.h" // in use only when trying to debug
 
 /* Every reference name must be first defined in enum before it shows up anywhere in the code. */
-enum layer_names { _BASE,
+enum layer_names {
                 _3SPEEDACL,
+                _STD,
                 _ALTERNATE2,
                 _STANDBY,
                 _LED_SETUP
@@ -70,13 +74,6 @@ enum custom_keycodes {
 
 /* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    /* One shot strides and also standard out of box mouse wheel action */
-    [_BASE]        = LAYOUT(                   CYCLE_RAD_LYRS,      // encoder press goto _3SPEEDACL
-                            TURN_0,  GOTO_P,   KC_NO,               // counter zero
-                            GOTO_0,   KC_NO, STRIDE_1,              // goto postion 0, kc_no, set stride to 1
-                            ENC_U, EXP_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
-                            ENC_D, EXP_WH_D, ENC_STRIDE_DEC         // 1 shot d click stride x,reg. wheel,inc stride
-                            ),
     /* QMK accelerated mouse wheel action
     The SPD_1_x, SPD_2_x, SPD_3_x keys set three speed ranges.
     Speed is currently set at compile time. Position counter n/a. */
@@ -85,6 +82,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                             GOTO_0,  KC_NO,   KC_NO,                // goto postion 0
                             SPD_1_U, SPD_2_U, SPD_3_U,              // up @ spd 1, up @ spd 2, up @ spd 3
                             SPD_1_D, SPD_2_D, SPD_3_D               // dn @ spd 1, dn @ spd 2, dn @ spd 3
+                            ),
+    /* One shot strides and also standard out of box mouse wheel action */
+    [_STD]        = LAYOUT(                   CYCLE_RAD_LYRS,      // encoder press goto _3SPEEDACL
+                            TURN_0,  GOTO_P,   KC_NO,               // counter zero
+                            GOTO_0,   KC_NO, STRIDE_1,              // goto postion 0, kc_no, set stride to 1
+                            ENC_U, EXP_WH_U, ENC_STRIDE_INC,        // 1 shot u click stride x,reg. wheel,inc stride
+                            ENC_D, EXP_WH_D, ENC_STRIDE_DEC         // 1 shot d click stride x,reg. wheel,inc stride
                             ),
     /* MLS mouse wheel speed control. The encoder sets stride
     while keys are used for up and down at stride distance. */
@@ -95,7 +99,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                             MLS_WHLD, MLS_WHLD, MLS_WHLD            // all keys do dn
                              ),
 
-    [_STANDBY]      = LAYOUT(                    EXIT_STBY,         // encoder press goto _BASE
+    [_STANDBY]      = LAYOUT(                    EXIT_STBY,         // encoder press goto _STD
                              TO(_LED_SETUP), MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
                              MSG_STBY, MSG_STBY, MSG_STBY,
@@ -137,11 +141,21 @@ static bool new_born = true;        /* in a fresh state */
     Otherwise there will be a compile error.
 */
 const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
-    [_BASE]        = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
-    [_3SPEEDACL]    = {ENCODER_CCW_CW(ENC_U,ENC_D)}, // custom function for encoder turn being up & dn
-    [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)}, // custom function for encoder turn being change strive value
-    [_LED_SETUP] = {ENCODER_CCW_CW(LED_I_DN, LED_I_UP)}, // LED Intensity
-    [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO)}      // do nothing
+    [_STD]        = {ENCODER_CCW_CW(ENC_U,ENC_D),   // custom function for encoder turn being up & dn
+                    ENCODER_CCW_CW(ENC_U,ENC_D)     // 2nd encoder if installed
+                    },
+    [_3SPEEDACL]    = {ENCODER_CCW_CW(ENC_U,ENC_D), // custom function for encoder turn being up & dn
+                    ENCODER_CCW_CW(ENC_U,ENC_D)     // 2nd encoder if installed
+                    },
+    [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC),  // custom function for encoder turn being change strive value
+                        ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)   // 2nd encoder if installed
+                        },
+    [_LED_SETUP] = {ENCODER_CCW_CW(LED_I_DN, LED_I_UP), // LED Intensity
+                    ENCODER_CCW_CW(LED_I_DN, LED_I_UP)  // 2nd encoder if installed
+                    },
+    [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO),    // do nothing
+                        ENCODER_CCW_CW(KC_NO, KC_NO)    // 2nd encoder if installed
+                    }
 };
 #endif
 
@@ -358,6 +372,14 @@ void init_logo_timer(void) {
     oled_logo_timer = timer_read32();
 };
 
+void keyboard_init_kb(void) {
+    /* making sure the adafruit macropad gpio pins used for the I2C
+    connector are setup for input for the 2nd encoder instead of
+    for I2C bus use */
+    gpio_set_pin_input_high(20);
+    gpio_set_pin_input_high(21);
+}
+
 void keyboard_post_init_kb(void) {
     /* This function executes once after most of the keyboard is initialized.
     The logo gets rendered and its timer to be visible is set. The logo is
@@ -425,6 +447,11 @@ void rpt_position_etc(void){
     rpt_stride();
 }
 
+void do_ready_msg(void){
+    oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
+    rpt_position_etc();
+}
+
 void rpt_led_status(void){
         /* reports all the current LED setup information to the oled */
         char buf[20];
@@ -471,6 +498,7 @@ bool oled_task_kb(void) {
     } else {
         /* Remove the logo and set logo_is_visible flag */
         clear_screenlogo();
+        do_ready_msg();
         return false;
     }
     return false;
@@ -485,7 +513,7 @@ bool oled_task_user(void) {
     /* writing to the oled per the current layer */
     // msg template    "xxxxxxxxxxxxxxxxxxxx"
     switch (get_highest_layer(layer_state)) {
-        case _BASE:
+        case _STD:
             /* Sheesh! */
             if (!new_born){
                 oled_advance_page(false);
@@ -494,15 +522,16 @@ bool oled_task_user(void) {
                 oled_advance_page(false);
 
             }else{
-                oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
-                rpt_position_etc();
+                do_ready_msg();
+                // oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
+                // rpt_position_etc();
                 oled_write_ln(PSTR(""), false);
             }
             oled_write_ln(PSTR(" -- Std Mse Wheel --"), false);
             oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
             oled_write_ln(PSTR("Press Encoder: Next"), false);
             oled_write_ln(PSTR(""), false);
-            active_layer = _BASE;
+            active_layer = _STD;
             new_born = false;
             break;
         case _3SPEEDACL:
@@ -576,6 +605,29 @@ static const uint8_t REP_DELAY_MS[] PROGMEM = {
     40, 40, 30, 30, 20, 20, 20, 20, 15, 15, 15, 15, 15,
     // Subsequent repeats in ms.
     10};
+
+
+int nanosleep(const struct timespec *req, struct timespec *rem);
+int msleep(long msec){
+    /* msleep(): Sleep for the requested number of milliseconds. */
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
 
 void do_countable_wh_u(bool pressed){
     static deferred_token rep_token = INVALID_DEFERRED_TOKEN;
@@ -905,8 +957,7 @@ void do_exit_standby(bool pressed){
 /* oled display a ready message*/
     if (pressed) {
         layer_move(LYR_CYCLE_START);
-        oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
-        rpt_position_etc();
+        do_ready_msg();
     }
 
 }
@@ -991,25 +1042,25 @@ layer_state_t layer_state_set_user(layer_state_t state) {
             rpt_led_status();
             break;
         case _STANDBY:
-            rgb_matrix_enable();
+            // rgb_matrix_enable();
             rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
             rgb_matrix_sethsv_noeeprom(0, 255, 8);
             break;
-        case _BASE:
-            rgb_matrix_enable();
-            rgb_matrix_mode_noeeprom(1);
-            /* hue, sat, value */
-            rgb_matrix_sethsv_noeeprom(85, 255, cur_val);
-            break;
-        case _3SPEEDACL:
-            rgb_matrix_enable();
+        case _STD:
+            // rgb_matrix_enable();
             rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
             rgb_matrix_sethsv_noeeprom(24, 255, ((16) > (cur_val) ? (16) : (cur_val)));
             break;
+        case _3SPEEDACL:
+            // rgb_matrix_enable();
+            rgb_matrix_mode_noeeprom(1);
+            /* hue, sat, value */
+            rgb_matrix_sethsv_noeeprom(85, 255, cur_val);
+            break;
         case _ALTERNATE2:
-            rgb_matrix_enable();
+            // rgb_matrix_enable();
             rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
             rgb_matrix_sethsv_noeeprom(168, 255, cur_val);
