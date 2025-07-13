@@ -47,7 +47,7 @@
 
 #define RGB_MATRIX_MAXIMUM_BRIGHTNESS 255
 #define RGB_MATRIX_HUE_STEP 4
-#define RGB_MATRIX_VAL_STEP 8
+#define RGB_MATRIX_VAL_STEP 4
 
 /* Mousekey speed control */
 // #define MK_MOMENTARY_ACCEL

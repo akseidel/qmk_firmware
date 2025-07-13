@@ -15,23 +15,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- /*
-* Notes for debugging! Debugging requires four things in place.
-* 1) CONSOLE_ENABLE = yes must be in rules.mk
-* 2) debug_enable = true;  must be made at some point.
-* This is often put into keyboard_post_init_user(void)
-* Additional debug_ flags are: debug_matrix, debug_keyboard and debug_mouse.
-* Exactly what they do is? But could be allowing matrix, keyboard and mouse
-* events available for debug reference.
-* 3) use print, uprintf, dprint and dprint functions to print to the "QMK CONSOLE".
-* 4) In a terminal run "qmk console" to see the debug printing. qmk console will
-* find the device, but if there is more than one device printing for QMK CONSOLE
-* then specify the device using pid:vid arguments for qmk console.
+/*
+ * Notes for debugging! Debugging requires four things in place.
+ * 1) CONSOLE_ENABLE = yes must be in rules.mk
+ * 2) debug_enable = true;  must be made at some point.
+ * This is often put into keyboard_post_init_(void)
+ * Additional debug_ flags are: debug_matrix, debug_keyboard and debug_mouse.
+ * Exactly what they do is? But could be allowing matrix, keyboard and mouse
+ * events available for debug reference.
+ * 3) use print, uprintf, dprint and dprint functions to print to the "QMK CONSOLE".
+ * But make sure to include \n in what is printed and that uprintf does nothing if
+ * no variable is used.
+ * 4) In a terminal run "qmk console" to see the debug printing. qmk console will
+ * find the device, but if there is more than one device printing for QMK CONSOLE
+ * then specify the device using pid:vid arguments for qmk console.
+*/
+
+/*
+ * Version 911 is the first version where OLED operation regarding how oled buffers
+ * are updated in write commands but not actually rendered until some operation
+ * either intentionally or unintentionally renders the "dirty", ie unrendered data.
+ * Do not use code from versions prior to 911 without fully understanding the issue.
 */
 
 #include QMK_KEYBOARD_H
 #include <time.h>
 #include <errno.h>
+#ifdef CONSOLE_ENABLE
+    #include "print.h"
+#endif
+#include "quantum.h" /*Needed for oled_on() function!*/
 
 /* Every reference name must be first defined in enum before it shows up anywhere in the code. */
 enum layer_names {
@@ -83,7 +96,6 @@ enum custom_keycodes {
 
 };
 
-
 /* KC_NO means no keycode, ie do nothing */
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* QMK accelerated mouse wheel action
@@ -133,19 +145,34 @@ static int16_t prev_pos = 0;        /* being used to record number of encoder tu
 static int16_t stride = 1;          /* stride is a distance (number of encoder turns) concept*/
 static bool position_valid = true;  /* flag indicating the position counter is valid */
 static int16_t active_layer = 0;    /* manually keeping track of current layer */
-static bool new_born = true;        /* in a fresh state */
+
+#ifdef CONSOLE_ENABLE
+    /* Flag as a fresh debug state to show verification message once at the QMK CONSOLE. */
+    static bool new_born_debug = true;
+#endif
+
+#define VERSION_NO 912
 
 /* These values are used in the scheme to cycle through layers but skip some layers */
 #define LYR_CYCLE_START 0
 #define LYR_CYCLE_END 3
 /* Values used to name oled page (line) number */
-#define MSG_LINE_ACTION 0
-#define MSG_LINE_POS 1
-#define MSG_LINE_STRIDE 2
-#define MSG_LINE_KEYS 4
-#define MSG_LINE_ENCODER 5
-#define MSG_LINE_ALT1 6
+#define MSG_LINE_0 0
+#define MSG_LINE_1 1
+#define MSG_LINE_2 2
+#define MSG_LINE_3 3
+#define MSG_LINE_4 4
+#define MSG_LINE_5 5
+#define MSG_LINE_6 6
+#define MSG_LINE_7 7
 
+/*For DIY oled timeout purposes.*/
+#define DIY_OLED_TIMEOUT 1    // in minutes
+static uint16_t idle_timer = 0;
+static uint8_t halfmin_counter = 0;
+static uint8_t dim_oled_brightness = 40;
+static bool dimmed_mode = false;
+static uint8_t prior_rgb_matrix_val;
 
 #ifdef ENCODER_MAP_ENABLE
 /*  This sets what the encoder turning does at each layer.
@@ -162,8 +189,8 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][NUM_DIRECTIONS] = {
     [_ALTERNATE2]    = {ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC),  // custom function for encoder turn being change strive value
                         ENCODER_CCW_CW(ENC_STRIDE_INC,ENC_STRIDE_DEC)   // 2nd encoder if installed
                         },
-    [_LED_SETUP] = {ENCODER_CCW_CW(LED_I_DN, LED_I_UP), // LED Intensity
-                    ENCODER_CCW_CW(LED_I_DN, LED_I_UP)  // 2nd encoder if installed
+    [_LED_SETUP] = {ENCODER_CCW_CW(LED_I_DN, LED_I_UP),     // LED Intensity
+                    ENCODER_CCW_CW(LED_HUE_DN, LED_HUE_UP)  // 2nd encoder if installed
                     },
     [_STANDBY]      = {ENCODER_CCW_CW(KC_NO, KC_NO),    // do nothing
                         ENCODER_CCW_CW(KC_NO, KC_NO)    // 2nd encoder if installed
@@ -369,14 +396,12 @@ void render_logo(void) {
 }
 
 void clear_screenlogo(void) {
-    /* clear logo is logo is still visible */
-    if (logo_is_visible) {
-        for (uint8_t i = 0; i < OLED_DISPLAY_HEIGHT; ++i) {
-            for (uint8_t j = 0; j < OLED_DISPLAY_WIDTH; ++j) {
-                oled_write_raw_byte(0x0, i * OLED_DISPLAY_WIDTH + j);
-            }
-        }
-    }
+    /* clear logo and set logo_is_visible flag */
+    /* oled_clear() clears the screen buffer, but does not update the screen
+    ie it is "dirty". oled_render_dirty() sends the updated portions to
+    the screen. */
+    oled_clear();
+    oled_render_dirty(true);
     logo_is_visible = false;
 }
 
@@ -385,7 +410,7 @@ void init_logo_timer(void) {
 };
 
 void keyboard_init_kb(void) {
-    /* making sure the adafruit macropad gpio pins used for the I2C
+    /* Making sure the adafruit macropad gpio pins used for the I2C
     connector are setup for input for the 2nd encoder instead of
     for I2C bus use */
     gpio_set_pin_input_high(20);
@@ -401,66 +426,88 @@ void keyboard_post_init_kb(void) {
     layer_state_set_user(layer_state);
 }
 
-// Used for debugging
-// void keyboard_post_init_user(void) {
-//     // This function executes once??
-//     // Customize these values to desired behaviour
-//     // debug_enable   = true;
-//     // debug_matrix   = true;
-//     // debug_keyboard = true;
-//     // debug_mouse    = true;
-// }
+#ifdef CONSOLE_ENABLE
+    /* Used for debugging to the QMK CONSOLE.  */
 
-/* oled_clean_write_ln() first cleans the desired ln_y oled line (frame)
-before then writing the desired text at the desired ln_y position.
-This gets around the problem of having residual text from previous
-writes on that line. */
-void oled_clean_write_ln(uint8_t ln_x, uint8_t ln_y, char wrds[], bool inverted ) {
+    void keyboard_post_init_user(void) {
+        // Customize these values to desired behaviour
+        debug_enable=true;
+        // debug_keyboard=true;
+        // debug_mouse=true;
+    }
+
+    /* This function is called within user oled_task, ie every matrix scan.
+    It sends the debug is functioning message once to QMK CONSOLE so that it
+    is known for sure that the debug messages are working. */
+    void send_debug_verification(void) {
+            if (new_born_debug){
+                print("------ Console debugging is functioning! -------\n");
+            }
+            new_born_debug = false;
+    }
+#endif
+
+/* - A writing to oled helper function
+oled_clean_write_ln()
+First cleans the desired ln_y oled line (frame) before then writing the desired text
+at the desired ln_y position. This gets around the problem of having residual text
+from the previous writes on that line.
+Oled remains "dirty", ie new data is not actually rendered yet.*/
+void oled_clean_write_ln(uint8_t ln_x, uint8_t ln_y, char wrds[], bool inverted, bool cntrd ) {
+    if (cntrd){
+        ln_x = (21 - (strlen(wrds)))/2;
+    }
     oled_set_cursor(0, ln_y);
     oled_write_ln(PSTR(""), false);
     oled_set_cursor(ln_x, ln_y);
     oled_write_ln(PSTR(wrds), inverted);
+    /* Note, at this point the oled has new data, "dirty", that have yet to be rendered.
+    Clean_write_ln is called many times within the oled_task_user function, so do not render now.*/
 }
 
-/* clears an oled line (page) by line number */
+/* - A writing to oled helper function
+clears an oled line (page) by line number */
 void oled_clean_ln( uint8_t ln_y) {
     oled_set_cursor(0, ln_y);
     oled_write_ln(PSTR(""), false);
 }
 
 void rpt_pos(void){
-    /* oled display position value */
+    /* oled display position value
+    Data goes to oled buffer and will not be rendered right away.*/
     char buf[20];
     if (position_valid){
         snprintf(buf, 20, "Pos: %d", en_turns);
-        oled_clean_write_ln(0, MSG_LINE_POS, buf, false);
+        oled_clean_write_ln(0, MSG_LINE_1, buf, false, false);
     } else {
-        oled_clean_write_ln(0, MSG_LINE_POS, "Pos: Now Invalid", false);
+        oled_clean_write_ln(0, MSG_LINE_1, "Pos: Now Invalid", false, false);
     }
 }
 
 void rpt_stride(void){
-    /* oled display stride value*/
+    /* oled display stride value.
+    Data goes to oled buffer and will not be rendered right away.*/
     char buf[20];
     switch (active_layer) {
         case _3SPEEDACL:
-            oled_clean_ln(MSG_LINE_STRIDE);
+            oled_clean_ln(MSG_LINE_2);
             break;
         default:
             snprintf(buf, 20, "Stride: %d", stride);
-            oled_clean_write_ln(0, MSG_LINE_STRIDE, buf, false);
+            oled_clean_write_ln(0, MSG_LINE_2, buf, false, false);
             break;
     }
 }
 
 void rpt_position_etc(void){
-    /* report radiology use function status like pos and stride */
+    /* Report radiology use function status like pos and stride.
+    Data goes to oled buffer and will not be rendered right away.*/
     rpt_pos();
     rpt_stride();
 }
 
-void do_ready_msg(void){
-    oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
+void do_layer_mode_msg(char *l_desc, bool invert){
+    oled_clean_write_ln(0, MSG_LINE_0, l_desc, invert, false);
     rpt_position_etc();
 }
 
@@ -468,29 +515,28 @@ void rpt_led_status(void){
         /* reports all the current LED setup information to the oled */
         char buf[20];
         uint8_t anim_mode = rgb_matrix_get_mode();
-         // msg template    (0, MSG_LINE_ACTION,"xxxxxxxxxxxxxxxxxxxx", false);
+         // msg template    (0, MSG_LINE_0,"xxxxxxxxxxxxxxxxxxxx", false);
         if (rgb_matrix_is_enabled()){
             snprintf(buf, 20,                   "Mode: %d          On", anim_mode);
-            oled_clean_write_ln(0, MSG_LINE_POS, buf, false);
+            oled_clean_write_ln(0, MSG_LINE_1, buf, false, false);
         } else {
             snprintf(buf, 20,                   "Mode: %d         Off", anim_mode);
-            oled_clean_write_ln(0, MSG_LINE_POS, buf, true);
+            oled_clean_write_ln(0, MSG_LINE_1, buf, true, false);
         }
 
         uint8_t intensity = rgb_matrix_get_val();
         snprintf(buf, 20, "Intensity: %d", intensity);
-        oled_clean_write_ln(0, MSG_LINE_STRIDE, buf, false);
+        oled_clean_write_ln(0, MSG_LINE_2, buf, false, false);
 
         uint8_t hue = rgb_matrix_get_hue();
         snprintf(buf, 20, "Color: %d", hue);
-        oled_clean_write_ln(0, MSG_LINE_STRIDE+1, buf, false);
+        oled_clean_write_ln(0, MSG_LINE_2+1, buf, false, false);
 
         uint8_t spd = rgb_matrix_get_speed();
         snprintf(buf, 20, "Speed: %d", spd);
-        oled_clean_write_ln(0, MSG_LINE_STRIDE+2, buf, false);
+        oled_clean_write_ln(0, MSG_LINE_2+2, buf, false, false);
 
 }
-
 
 bool oled_task_kb(void) {
     /* This function executes at every matrix scan. It provides the opportunity
@@ -500,109 +546,176 @@ bool oled_task_kb(void) {
     need to be rendered again. Instead the logo timer is checked to decide when to
     erase the logo and change the logo_is_visible flag. */
 
-    if (!logo_is_visible) {
-        oled_task_user();
-        return false;
-    }
-    if ((timer_elapsed32(oled_logo_timer) < SHOW_LOGO)) {
-        /* Allow the logo to remain showing during SHOW_LOGO */
-        return false;
+    if (logo_is_visible) {
+        if ((timer_elapsed32(oled_logo_timer) < SHOW_LOGO)) {
+            /* Allow the logo to remain showing during SHOW_LOGO */
+            return false;
+        } else {
+            /* Remove the logo and set logo_is_visible flag */
+            clear_screenlogo();
+        }
     } else {
-        /* Remove the logo and set logo_is_visible flag */
-        clear_screenlogo();
-        do_ready_msg();
-        return false;
+        oled_task_user();
     }
     return false;
 }
-
 
 bool oled_task_user(void) {
     /* This function executes at every matrix scan as long as the oled_task_kb allows
     it. That happens when oled_task_kb returns true. Basically on a continuous basis
     depending on what oled_task_kb does. */
 
-    /* writing to the oled per the current layer */
+    /* It is critical to understand that writing to the oled updates the oled's line
+    buffers but does not send the new "dirty" data to the oled to be rendered. To
+    keep oled flickering at a minimum, try to render as least as possible. Thus
+    the render command is issued at the oled_task_user end and is not needed anywhere
+    else because oled_task_user runs for every matrix scan.*/
+
+    #ifdef CONSOLE_ENABLE
+        send_debug_verification();
+    #endif
+
+    /* At the end of this oled_task_user() is an oled_render-dirty() command. Nothing is
+    properly displayed without it! But oled_render-dirty() resets the oled's display
+    timeout period making OLED_TIMEOUT not functional. The DIY display dimming code
+    provides a lucky way to bypass this line by exiting now when in dimmed_mode. */
+    if (dimmed_mode){
+        return true;
+    }
+
+    /* Writing to the oled buffers on a per current layer basis.*/
     // msg template    "xxxxxxxxxxxxxxxxxxxx"
     switch (get_highest_layer(layer_state)) {
         case _STD:
-            /* Sheesh! */
-            if (!new_born){
-                oled_advance_page(false);
-                oled_advance_page(false);
-                oled_advance_page(false);
-                oled_advance_page(false);
 
-            }else{
-                do_ready_msg();
-                // oled_clean_write_ln(3, MSG_LINE_ACTION, "---  Ready  ---", false);
-                // rpt_position_etc();
-                oled_write_ln(PSTR(""), false);
-            }
-            oled_write_ln(PSTR(" -- Std Mse Wheel --"), false);
-            oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
-            oled_write_ln(PSTR(""), false);
+            do_layer_mode_msg("--- Std Mse Wheel ---", false);
+            oled_clean_ln(MSG_LINE_4);
+            oled_clean_ln(MSG_LINE_5);
+            oled_clean_write_ln(0, MSG_LINE_6, "Encoder: Mse Wheel", false, false);
+            oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
             active_layer = _STD;
-            new_born = false;
+            // new_born = false;
             break;
         case _3SPEEDACL:
-            /* Advance_page moves to next oled line while keeping what
-            is already on the current line. The top four lines are not
-            erased from what was already there.*/
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_write_ln(PSTR(" -- Acl Mse Wheel --"), false);
-            oled_write_ln(PSTR("3 Wheel Speed Modes"), false);
-            oled_write_ln(PSTR("Encoder: Mse Wheel"), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
+
+            do_layer_mode_msg("--- Acl Mse Wheel ---", false);
+            oled_clean_write_ln(0, MSG_LINE_5, "3 Wheel Speed Modes", false, false);
+            oled_clean_write_ln(0, MSG_LINE_6, "Encoder: Mse Wheel", false, false);
+            oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
             active_layer = _3SPEEDACL;
             break;
         case _ALTERNATE2:
-            /* Advance_page moves to next oled line while keeping what
-            is already on the current line. The top four lines are not
-            erased from what was already there.*/
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_write_ln(PSTR(" -- MLS Mse Wheel --"), false);
-            oled_write_ln(PSTR("Encoder: Stride"), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
+
+            do_layer_mode_msg("--- MLS Mse Wheel ---", false);
+            oled_clean_ln(MSG_LINE_5);
+            oled_clean_write_ln(0, MSG_LINE_6, "Encoder: Stride", false, false);
+            oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
+
             active_layer = _ALTERNATE2;
             break;
         case _STANDBY:
-            oled_write_ln(PSTR("  -- Standby Mode --"), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR("#1 Key: LED Setup"), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
+            oled_clean_write_ln(0, MSG_LINE_0, "--- Standby Mode ---", false, false);
+            oled_clean_ln(MSG_LINE_1);
+            oled_clean_write_ln(0, MSG_LINE_2, "#1 Key: LED Setup", false, false);
+            oled_clean_ln(MSG_LINE_3);
+            oled_clean_ln(MSG_LINE_4);
+            oled_clean_ln(MSG_LINE_5);
+            char buf[20];
+            snprintf(buf, 20, "Radpad Ver. %d", VERSION_NO);
+            oled_clean_write_ln(0, MSG_LINE_6, buf, false, false);
+            oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
+
             active_layer = _STANDBY;
             break;
         case _LED_SETUP:
-            oled_write_ln(PSTR("  --  LED Setup  --"), false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_advance_page(false);
-            oled_write_ln(PSTR(""), false);
-            oled_write_ln(PSTR("Encoder: Intensity"), false);
-            oled_write_ln(PSTR("Press Encoder: Next"), false);
+            oled_clean_write_ln(0, MSG_LINE_0, "---  LED Setup  ---", false, false);
+            oled_clean_ln(MSG_LINE_1);
+            oled_clean_ln(MSG_LINE_2);
+            oled_clean_ln(MSG_LINE_3);
+            oled_clean_ln(MSG_LINE_4);
+            oled_clean_ln(MSG_LINE_5);
+            oled_clean_write_ln(0, MSG_LINE_6, "Encoder: Intensity", false, false);
+            oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
+            rpt_led_status();
             active_layer = _LED_SETUP;
             break;
         default:
             break;
     }
+    /* Nothing is properly displayed without this. But oled_render-dirty() resets the
+    oled's display timeout period making OLED_TIMEOUT not functional. The DIY display
+    dimming code provides a lucky way to bypass this line. */
+    oled_render_dirty(true);
+
     return true;
 }
 
 #endif  /* for OLED_ENABLE */
+
+
+void be_not_dimmed(void){
+    if (OLED_BRIGHTNESS > oled_get_brightness()) {
+        oled_set_brightness(OLED_BRIGHTNESS);
+    }
+    oled_scroll_off();
+
+    /**/
+    rgb_matrix_enable_noeeprom();
+    /* There is not a direct way to set the led matrix brightness
+    to a specific value other than 0 or 255.. This cranks the brightness
+    as high as it can go to the prior_rgb_matrix_val.*/
+    uint8_t decs = prior_rgb_matrix_val / RGB_MATRIX_VAL_STEP;
+    uint8_t i;
+    for (i = 1; i < decs; i++) {
+        rgb_matrix_increase_val_noeeprom();
+    }
+}
+
+void be_dimmed(void){
+
+    oled_set_brightness(dim_oled_brightness);
+    oled_scroll_right();
+
+    prior_rgb_matrix_val = rgb_matrix_get_val();
+
+    /* Use this instead when wanting keys leds to be off. */
+    // rgb_matrix_disable_noeeprom();
+
+    /* There is not a direct way to set the led matrix brightness
+    to a specific value other than 0 or 255. This cranks the brightness
+    as low as it can go above 0 via the decrease_val function.
+    RGB_MATRIX_VAL_STEP being set to 1 allows the value to decrease
+    to 1, but there is not any noticeable difference until val is 10.*/
+    uint8_t decs = prior_rgb_matrix_val / RGB_MATRIX_VAL_STEP;
+    uint8_t i;
+    for (i = 1; i < decs; i++) {
+        rgb_matrix_decrease_val_noeeprom();
+    }
+
+}
+
+/*For DIY oled timeout purposes.*/
+void matrix_scan_user(void) {
+    /* Using matrix_scan_user to increment the idle_timer.
+    The idle_time is reset elsewhere to 0 when any macropad
+    key or control has triggered activity.*/
+    // idle_timer needs to be set one time
+    if (idle_timer == 0) idle_timer = timer_read();
+
+    if (timer_elapsed(idle_timer) > 30000) {
+        halfmin_counter++;
+        idle_timer = timer_read();
+    }
+
+    if (halfmin_counter >= DIY_OLED_TIMEOUT * 2) {
+        be_dimmed();
+        halfmin_counter = 0;
+        dimmed_mode = true;
+    }
+}
+
+
+
 
 /* These values are used for the repeating scroll key method that provides
 a point where the scroll can be counted. The technique is Borrowed from
@@ -657,7 +770,7 @@ void do_countable_wh_u(bool pressed){
         return pgm_read_byte(REP_DELAY_MS + repeat_cnt);
     }
     tap_code(KC_WH_U);  // Initial tap of the key.
-    oled_clean_write_ln(4, MSG_LINE_ACTION, "+ Hyper In +", false);
+    oled_clean_write_ln(0, MSG_LINE_3, "    + Hyper In +", false, false);
     en_turns++;
     rpt_pos();
     // Schedule key to repeat.
@@ -682,7 +795,7 @@ void do_countable_wh_d(bool pressed){
         return pgm_read_byte(REP_DELAY_MS + repeat_cnt);
     }
     tap_code(KC_WH_D);  // Initial tap of the key.
-    oled_clean_write_ln(4, MSG_LINE_ACTION, "- Hyper Out -", false);
+    oled_clean_write_ln(0, MSG_LINE_3, " - Hyper Out -", false, true);
     en_turns--;
     rpt_pos();
     // Schedule key to repeat.
@@ -694,7 +807,7 @@ void do_enc_stride_inc(bool pressed){
     /* Encoder turn increases the stride value by 1 */
     if (pressed) {
         stride++;
-        oled_clean_write_ln(1, MSG_LINE_ACTION, "| +  Stride Chg  + |", false);
+        oled_clean_write_ln(0, MSG_LINE_3, "| +  Stride Chg  + |", false, true);
         }
 }
 
@@ -703,9 +816,9 @@ void do_enc_stride_dec(bool pressed){
     if (pressed) {
         if (stride > 1) {
             stride--;
-            oled_clean_write_ln(1, MSG_LINE_ACTION, "| -  Stride Chg  - |", false);
+            oled_clean_write_ln(0, MSG_LINE_3, "| -  Stride Chg  - |", false, true);
         }else{
-            oled_clean_write_ln(1, MSG_LINE_ACTION, "|  Positive Only!  |", true);
+            oled_clean_write_ln(0, MSG_LINE_3, "|  Positive Only!  |", true, true);
         }
     }
 }
@@ -715,7 +828,7 @@ void do_turn_0(bool pressed){
     if (pressed) {
         en_turns = 0;
         position_valid = true;
-        oled_clean_write_ln(3, 0, "000  Zero Pos 000", false);
+        oled_clean_write_ln(0, MSG_LINE_3, "000 Zero Pos 000", false, true);
     }
 }
 
@@ -723,7 +836,7 @@ void do_stride_1(bool pressed){
     /* Resets the stride value to 1*/
     if (pressed) {
         stride = 1;
-        oled_clean_write_ln(1, 0, "| 1 Stride Reset 1 |", false);
+        oled_clean_write_ln(0, MSG_LINE_3, "| 1 Stride Reset 1 |", true, true);
     }
 }
 
@@ -745,7 +858,7 @@ void do_spd_1_u(bool pressed) {
         // when pressed
         tap_code(MS_ACL0);
         register_code(KC_WH_U);
-        oled_clean_write_ln(3, 0, "+ Speed 1 In +", false);
+        oled_clean_write_ln(0, MSG_LINE_3, "+ Speed 1 In +", false, true);
         position_valid = false;
     } else {
         // when released
@@ -762,7 +875,7 @@ count of the number sent, so the en_turns is not updated.*/
         // when pressed
         tap_code(MS_ACL0);
         register_code(KC_WH_D);
-        oled_clean_write_ln(3, 0, "- Speed 1 Out -", false);
+        oled_clean_write_ln(0, MSG_LINE_3, " - Speed 1 Out -", false, true);
         position_valid = false;
     } else {
         // when released
@@ -779,7 +892,7 @@ count of the number sent, so the en_turns is not updated.*/
         // when pressed
         tap_code(MS_ACL1);
         register_code(KC_WH_U);
-        oled_clean_write_ln(3, 0, "++ Speed 2 In ++", false);
+        oled_clean_write_ln(0, MSG_LINE_3, "++ Speed 2 In ++", false, true);
         position_valid = false;
     } else {
         // when released
@@ -795,7 +908,8 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL1);
         register_code(KC_WH_D);
-        oled_clean_write_ln(2, 0, "-- Speed 2 Out --", false);
+        /* Centering the text on oled requires odd number of characters */
+        oled_clean_write_ln(0, MSG_LINE_3, "-- Speed 2 Out --", false, true);
         position_valid = false;
     } else {
         unregister_code(KC_WH_D);
@@ -810,7 +924,7 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL2);
         register_code(KC_WH_U);
-        oled_clean_write_ln(1, 0, "+++ Speed 3 In +++", false);
+        oled_clean_write_ln(0, MSG_LINE_3, " +++ Speed 3 In +++", false, true);
         position_valid = false;
     } else {
         unregister_code(KC_WH_U);
@@ -825,7 +939,8 @@ count of the number sent, so the en_turns is not updated.*/
     if (pressed) {
         tap_code(MS_ACL2);
         register_code(KC_WH_D);
-        oled_clean_write_ln(1, 0, "--- Speed 3 Out ---", false);
+        /* Centering the text on oled requires odd number of characters */
+        oled_clean_write_ln(0, MSG_LINE_3, "--- Speed 3 Out ---", false, true);
         position_valid = false;
     } else {
         unregister_code(KC_WH_D);
@@ -843,7 +958,9 @@ Note: an encoder event comes as a press/release pair */
                 tap_code(KC_WH_U);
                 en_turns++;
             }
-        oled_clean_write_ln(2, MSG_LINE_ACTION, "+++ In Scroll +++", false);
+
+        /* Centering the text on oled requires odd number of characters */
+        oled_clean_write_ln(0, MSG_LINE_3, "+++ In Scroll +++", false, true);
     }
 }
 
@@ -857,7 +974,7 @@ Note: an encoder event comes as a press/release pair */
                 tap_code(KC_WH_D);
                 en_turns--;
             }
-        oled_clean_write_ln(1, MSG_LINE_ACTION, "--- Out Scroll ---", false);
+        oled_clean_write_ln(0, MSG_LINE_3, " --- Out Scroll ---", false, true);
     }
 }
 
@@ -873,7 +990,14 @@ The en_turns value is updated for each wheel up sent.*/
             tap_code(KC_WH_U);
             en_turns++;
         }
-        oled_clean_write_ln(1, MSG_LINE_ACTION, "++ MLS In Scroll ++", false);
+        char buf[20];
+        snprintf(buf, 20, "++ In Scroll %d ++", stride);
+        oled_clean_write_ln(0, MSG_LINE_3, buf, false, true);
+        #ifdef CONSOLE_ENABLE
+            uprintf("buf is %s\n", buf);
+            int a = strlen(buf);
+            uprintf("strlen(buf) is %i\n", a);
+        #endif
     }
 }
 
@@ -889,7 +1013,14 @@ Note: an encoder event comes as a press/release pair */
             tap_code(KC_WH_D);
             en_turns--;
         }
-        oled_clean_write_ln(1, MSG_LINE_ACTION, "-- MLS Out Scroll --", false);
+        char buf[20];
+        snprintf(buf, 20, "++ Out Scroll %d ++", stride);
+        oled_clean_write_ln(0, MSG_LINE_3, buf, false, true);
+        #ifdef CONSOLE_ENABLE
+            uprintf("buf is %s\n", buf);
+            int a = strlen(buf);
+            uprintf("strlen(buf) is %i\n", a);
+        #endif
     }
 }
 
@@ -908,13 +1039,14 @@ required to return to 0 position.*/
                     en_turns--;
                 }
             }
-            oled_clean_write_ln(1, MSG_LINE_ACTION, "-- Scrolled To 0 --", false);
+            // msg template     (0, MSG_LINE_0,"xxxxxxxxxxxxxxxxxxxxx", false);
+            oled_clean_write_ln(0, MSG_LINE_3, "-- Scrolled To 0 --", false, true);
             } else {
-                oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", true);
+                oled_clean_write_ln(0, MSG_LINE_3, " !! Not Applicable !!", true, true);
             }
     } else {
         if (!position_valid){
-            oled_clean_write_ln(0, MSG_LINE_ACTION, "!! Not Applicable !!", false);
+            oled_clean_write_ln(0, MSG_LINE_3, " !! Not Applicable !!", false, true);
         }
     }
 }
@@ -927,7 +1059,7 @@ required to return to previous position p.*/
             int16_t delta_turns = prev_pos - en_turns;
             int8_t dir = 0;
             prev_pos = en_turns;
-            oled_clean_ln(MSG_LINE_ACTION);
+            oled_clean_ln(MSG_LINE_0);
             while (delta_turns != 0){
                 if (delta_turns < 0) {
                     tap_code(KC_WH_D);
@@ -943,24 +1075,24 @@ required to return to previous position p.*/
             }
             switch(dir){
                 case 0:
-                    // msg template    (0, MSG_LINE_ACTION,"xxxxxxxxxxxxxxxxxxxx", false);
-                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~  A Boundary Set  ~", false);
+                    // msg template    (0, MSG_LINE_0,"xxxxxxxxxxxxxxxxxxxxx", false);
+                    oled_clean_write_ln(0, MSG_LINE_3,"~  A Boundary Set  ~", false, true);
                     break;
                 case 1:
-                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~   Boundary In    ~", false);
+                    oled_clean_write_ln(0, MSG_LINE_3,"~   Boundary In    ~", false, true);
                     break;
                 case -1:
-                    oled_clean_write_ln(0, MSG_LINE_ACTION,"~   Boundary Out   ~", false);
+                    oled_clean_write_ln(0, MSG_LINE_3,"~   Boundary Out   ~", false, true);
                     break;
                 default:
                     break;
             }
             } else {
-                oled_clean_write_ln(1, MSG_LINE_ACTION, "!! Not Applicable !!", true);
+                oled_clean_write_ln(0, MSG_LINE_3, " !! Not Applicable !!", true, true);
             }
     } else {
         if (!position_valid){
-            oled_clean_write_ln(1, MSG_LINE_ACTION, "!! Not Applicable !!", false);
+            oled_clean_write_ln(0, MSG_LINE_3, " !! Not Applicable !!", false, true);
         }
     }
 }
@@ -969,9 +1101,7 @@ void do_exit_standby(bool pressed){
 /* oled display a ready message*/
     if (pressed) {
         layer_move(LYR_CYCLE_START);
-        do_ready_msg();
     }
-
 }
 
 void do_cycle_rad_lyr(bool pressed){
@@ -995,85 +1125,97 @@ void do_led_tog(bool pressed){
             rgb_matrix_enable();
         }
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_nxt(bool pressed){
     if (pressed) {
         rgb_matrix_step();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_i_up(bool pressed){
     if (pressed) {
-        rgb_matrix_increase_val();
+        rgb_matrix_increase_val_noeeprom();
     }
-    rpt_led_status();
+   /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_i_dn(bool pressed){
     if (pressed) {
-        rgb_matrix_decrease_val();
+        rgb_matrix_decrease_val_noeeprom();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_hue_up(bool pressed){
     if (pressed) {
-        rgb_matrix_increase_hue();
+        rgb_matrix_increase_hue_noeeprom();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_hue_dn(bool pressed){
     if (pressed) {
-        rgb_matrix_decrease_hue();
+        rgb_matrix_decrease_hue_noeeprom();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_spd_up(bool pressed){
     if (pressed) {
         rgb_matrix_increase_speed();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
 }
 
 void do_led_spd_dn(bool pressed){
     if (pressed) {
         rgb_matrix_decrease_speed();
     }
-    rpt_led_status();
+    /* Note, rpt_led_status() is not needed. It is called during oled_task. */
+}
+
+void wake_up(void){
+    idle_timer = timer_read();
+    halfmin_counter = 0;
+    /* wake_up resets the idle_timer when keys are pressed, but things go
+    on in be_not_dimmed that should happen only when coming out of dimmed
+    mode.*/
+    if (dimmed_mode){
+        be_not_dimmed();
+        dimmed_mode = false;
+    }
 }
 
 layer_state_t layer_state_set_user(layer_state_t state) {
+    if (dimmed_mode){
+        return state;
+    }
+    /* rgb_matrix_mode_noeeprom(1) sets to animation #1*/
+    rgb_matrix_mode_noeeprom(1);
     uint8_t cur_val = rgb_matrix_get_val();
     switch (get_highest_layer(state)) {
         case _LED_SETUP:
-            rpt_led_status();
             break;
         case _STANDBY:
-            // rgb_matrix_enable();
-            rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
-            rgb_matrix_sethsv_noeeprom(0, 255, 8);
+            rgb_matrix_sethsv_noeeprom(0, 255, cur_val);
             break;
         case _STD:
-            // rgb_matrix_enable();
-            rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
-            rgb_matrix_sethsv_noeeprom(24, 255, ((16) > (cur_val) ? (16) : (cur_val)));
+            /* Some hues require a minimum led power because each led r,g & b has a
+            different brightness for the same voltage. Some might not even be lit.
+            This line can be used to make sure the brightness is enough for the hue.
+            rgb_matrix_sethsv_noeeprom(24, 255, ((16) > (cur_val) ? (16) : (cur_val))); */
+            rgb_matrix_sethsv_noeeprom(24, 255, cur_val);
             break;
         case _3SPEEDACL:
-            // rgb_matrix_enable();
-            rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
             rgb_matrix_sethsv_noeeprom(85, 255, cur_val);
             break;
         case _ALTERNATE2:
-            // rgb_matrix_enable();
-            rgb_matrix_mode_noeeprom(1);
             /* hue, sat, value */
             rgb_matrix_sethsv_noeeprom(168, 255, cur_val);
             break;
@@ -1094,6 +1236,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     register_code(keycode) is press
     unregister_code(keycode) is release
     */
+
+    /* Only wake up for any activity when in dimmed mode.*/
+    if (dimmed_mode){
+        wake_up();
+        return true;
+    }
 
     switch (keycode) {
         case EXP_WH_U:
@@ -1234,15 +1382,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             break;
 
         case EXIT_STBY:
-            /* oled display a ready message*/
+            /* Exit Standby layer */
             do_exit_standby(record->event.pressed);
-            return false;
             break;
 
         case CYCLE_RAD_LYRS:
-            /* Cycle to next layer in the rad use layers */
+            /* Cycle to next layer in the rad use layers.*/
             do_cycle_rad_lyr(record->event.pressed);
-            return false;
             break;
 
         case GOTO_P:
@@ -1295,6 +1441,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         default:
             break;
     }
+
+    /*For DIY oled timeout purposes.*/
+    if (record->event.pressed) {
+        wake_up();
+    }
+
     return true;
 };
-
