@@ -175,8 +175,17 @@ static int16_t active_layer = 0;    /* manually keeping track of current layer *
 #define MSG_LINE_6 6
 #define MSG_LINE_7 7
 
-/*For DIY oled timeout purposes.*/
-#define DIY_OLED_TIMEOUT 1    // in minutes
+/* For DIY oled timeout purposes. The DIY oled timeout sets the oled into scrolling
+mode and halts any more writes to the oled and prevents any new rendering. Any keypress
+or encoder move cancels the DIY oled timeout. Those timeout exiting actions are ignored.
+The DIY oled timeout shuts down activity to the oled, so the system OLED_TIMEOUT is
+counting its timeout from that point. If the system OLED_TIMEOUT remains at its default
+of 60000 ms, which is 1 minute, then the system blanks the oleds.
+Leaving the Radpad alone, you should see the oled start scrolling after 1 minute and then
+going blank after another minute. The DIY_OLED_TIMEOUT is also used for keyboard dimming,
+but no system timeout is used for the keyboard. It would stay dimmed after that first minute.*/
+
+#define DIY_OLED_TIMEOUT 1   // minutes
 static uint16_t idle_timer = 0;
 static uint8_t halfmin_counter = 0;
 static uint8_t dim_oled_brightness = 40;

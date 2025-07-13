@@ -25,7 +25,12 @@
 #define OLED_CS_PIN GP22
 #define OLED_RST_PIN GP23
 
+/* Display settings */
 #define OLED_BRIGHTNESS 128
+/* Without setting OLED_TIMEOUT the default
+will be 60000 (60 seconds). This is after the
+last activity on the screen. */
+#define OLED_TIMEOUT 60000
 
 /* Shift OLED columns by 2 pixels */
 #define OLED_COLUMN_OFFSET 2
