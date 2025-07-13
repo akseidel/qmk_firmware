@@ -17,18 +17,27 @@
 
 /*
  * Notes for debugging! Debugging requires four things in place.
+ *
  * 1) CONSOLE_ENABLE = yes must be in rules.mk
+ *
  * 2) debug_enable = true;  must be made at some point.
  * This is often put into keyboard_post_init_(void)
  * Additional debug_ flags are: debug_matrix, debug_keyboard and debug_mouse.
  * Exactly what they do is? But could be allowing matrix, keyboard and mouse
  * events available for debug reference.
+ *
  * 3) use print, uprintf, dprint and dprint functions to print to the "QMK CONSOLE".
- * But make sure to include \n in what is printed and that uprintf does nothing if
- * no variable is used.
+ * But make sure to include \n in what is printed. Also, uprintf does nothing if
+ * no variable is passed into it.
+ *
  * 4) In a terminal run "qmk console" to see the debug printing. qmk console will
  * find the device, but if there is more than one device printing for QMK CONSOLE
  * then specify the device using pid:vid arguments for qmk console.
+ *
+ * This code contains measures to provide debug helping functions when CONSOLE_ENABLE
+ * is yes. There is a function that outputs to QMK CONSOLE on startup this line:
+ * "----- Console debugging is functioning! -------" so that you know the apparatus for
+ * debugging with QMK CONSOLE is in place and functioning.
 */
 
 /*
@@ -621,7 +630,7 @@ bool oled_task_user(void) {
             oled_clean_ln(MSG_LINE_4);
             oled_clean_ln(MSG_LINE_5);
             char buf[20];
-            snprintf(buf, 20, "Radpad Ver. %d", VERSION_NO);
+            snprintf(buf, 20, "Version %d", VERSION_NO);
             oled_clean_write_ln(0, MSG_LINE_6, buf, false, false);
             oled_clean_write_ln(0, MSG_LINE_7, "Press Encoder: Next", false, false);
 
